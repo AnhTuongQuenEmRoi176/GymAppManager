@@ -1,0 +1,14 @@
+PyQt6
+opencv-python
+pyzbar
+SQLAlchemy
+pymysql
+bcrypt
+pandas
+openpyxl
+Pillow
+python-dotenv
+itsdangerous
+matplotlib
+pyqtgraph
+qrcode
