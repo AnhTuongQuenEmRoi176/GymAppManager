@@ -19,15 +19,7 @@ from PyQt6.QtWidgets import (
 
 from app.state import get_current_user, is_admin
 from app.ui.login import LoginDialog
-from app.ui.tab_dashboard import TabDashboard
-from app.ui.tab_history import TabHistory
-from app.ui.tab_members import TabMembers
-from app.ui.tab_packages import TabPackages
-from app.ui.tab_qrdemo import TabQRDemo
-from app.ui.tab_receptionists import TabReceptionists
-from app.ui.tab_reports import TabReports
-from app.ui.tab_trainers import TabTrainers
-from app.ui.theme import APP_STYLESHEET
+from app.ui.theme import apply_app_theme
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +30,9 @@ class MainWindow(QMainWindow):
         self.resize(1280, 780)
         self.setMinimumSize(1080, 680)
         self.nav_buttons = []
+        self.page_specs = []
+        self.loaded_pages = {}
+        self.theme_mode = "dark"
 
         root = QWidget()
         root_layout = QHBoxLayout(root)
@@ -76,23 +71,29 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         pages = [
-            ("Trang chủ", TabDashboard, False),
-            ("Thử nghiệm QR", TabQRDemo, False),
-            ("Lịch sử check-in", TabHistory, False),
-            ("Lễ tân", TabReceptionists, True),
-            ("Huấn luyện viên", TabTrainers, False),
-            ("Gói tập", TabPackages, False),
-            ("Hội viên", TabMembers, False),
-            ("Doanh thu", TabReports, True),
+            ("Trang chủ", "app.ui.tab_dashboard", "TabDashboard", False),
+            ("Thử nghiệm QR", "app.ui.tab_qrdemo", "TabQRDemo", False),
+            ("Lịch sử check-in", "app.ui.tab_history", "TabHistory", False),
+            ("Lễ tân", "app.ui.tab_receptionists", "TabReceptionists", True),
+            ("Huấn luyện viên", "app.ui.tab_trainers", "TabTrainers", False),
+            ("Gói tập", "app.ui.tab_packages", "TabPackages", False),
+            ("Hội viên", "app.ui.tab_members", "TabMembers", False),
+            ("Doanh thu", "app.ui.tab_reports", "TabReports", True),
         ]
 
-        for title, factory, admin_only in pages:
-            page = factory()
-            self.stack.addWidget(page)
-            button = self._build_nav_button(title, self.stack.count() - 1, admin_only)
+        for title, module_name, class_name, admin_only in pages:
+            placeholder = QWidget()
+            page_index = self.stack.addWidget(placeholder)
+            self.page_specs.append((module_name, class_name))
+            button = self._build_nav_button(title, page_index, admin_only)
             sidebar_layout.addWidget(button)
 
         sidebar_layout.addStretch()
+        self.btn_theme = QPushButton("Chế độ sáng")
+        self.btn_theme.setObjectName("secondaryButton")
+        self.btn_theme.clicked.connect(self.toggle_theme)
+        sidebar_layout.addWidget(self.btn_theme)
+
         user = get_current_user()
         user_text = user.full_name or user.username if user else "Chưa đăng nhập"
         role_text = "Admin" if is_admin() else "Lễ tân"
@@ -125,10 +126,26 @@ class MainWindow(QMainWindow):
         self.nav_buttons.append(button)
         return button
 
+    def _ensure_page_loaded(self, index):
+        if index in self.loaded_pages:
+            return
+        import importlib
+
+        module_name, class_name = self.page_specs[index]
+        module = importlib.import_module(module_name)
+        page_class = getattr(module, class_name)
+        page = page_class()
+        old_widget = self.stack.widget(index)
+        self.stack.removeWidget(old_widget)
+        old_widget.deleteLater()
+        self.stack.insertWidget(index, page)
+        self.loaded_pages[index] = page
+
     def set_current_page(self, index):
         button = self.nav_buttons[index]
         if not button.isEnabled():
             return
+        self._ensure_page_loaded(index)
         self.stack.setCurrentIndex(index)
         for nav_button in self.nav_buttons:
             active = nav_button.property("page_index") == index
@@ -136,6 +153,11 @@ class MainWindow(QMainWindow):
             nav_button.setProperty("active", active)
             nav_button.style().unpolish(nav_button)
             nav_button.style().polish(nav_button)
+
+    def toggle_theme(self):
+        self.theme_mode = "light" if self.theme_mode == "dark" else "dark"
+        apply_app_theme(QApplication.instance(), self.theme_mode)
+        self.btn_theme.setText("Chế độ tối" if self.theme_mode == "light" else "Chế độ sáng")
 
     def apply_role_permissions(self):
         if is_admin():
@@ -149,7 +171,7 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(APP_STYLESHEET)
+    apply_app_theme(app, "dark")
 
     login = LoginDialog()
 

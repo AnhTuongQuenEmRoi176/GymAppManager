@@ -3,6 +3,7 @@
 from app.db import get_session
 from app.models import Package
 from app.ui.theme import page_title
+from app.ui.validators import parse_money, validate_required
 
 
 class PackageForm(QDialog):
@@ -32,9 +33,9 @@ class PackageForm(QDialog):
         self.sessions.setPlaceholderText("Để trống nếu không giới hạn")
 
         form = QFormLayout()
-        form.addRow("Tên gói", self.name)
-        form.addRow("Giá (VND)", self.price)
-        form.addRow("Thời hạn (ngày)", self.duration)
+        form.addRow("Tên gói *", self.name)
+        form.addRow("Giá (VND) *", self.price)
+        form.addRow("Thời hạn (ngày) *", self.duration)
         form.addRow("Số buổi", self.sessions)
         panel_layout.addLayout(form)
 
@@ -42,6 +43,7 @@ class PackageForm(QDialog):
         self.btn_save = QPushButton("Lưu")
         self.btn_save.setObjectName("primaryButton")
         self.btn_cancel = QPushButton("Hủy")
+        self.btn_cancel.setObjectName("ghostButton")
         buttons.addStretch()
         buttons.addWidget(self.btn_cancel)
         buttons.addWidget(self.btn_save)
@@ -67,15 +69,31 @@ class PackageForm(QDialog):
         finally:
             session.close()
 
-    def save(self):
+    def _validate(self):
         name = self.name.text().strip()
-        price = self.price.text().strip() or "0"
-        duration = self.duration.text().strip() or "0"
-        sessions = self.sessions.text().strip() or None
+        error = validate_required(name, "Tên gói")
+        if error:
+            QMessageBox.warning(self, "Lỗi nhập liệu", error)
+            return None
+        try:
+            price = parse_money(self.price.text(), "Giá", required=True)
+            duration = int(self.duration.text().strip())
+            if duration <= 0:
+                raise ValueError("Thời hạn phải lớn hơn 0")
+            sessions_text = self.sessions.text().strip()
+            sessions = int(sessions_text) if sessions_text else None
+            if sessions is not None and sessions < 0:
+                raise ValueError("Số buổi không được âm")
+        except ValueError as exc:
+            QMessageBox.warning(self, "Lỗi nhập liệu", str(exc))
+            return None
+        return name, price, duration, sessions
 
-        if not name:
-            QMessageBox.warning(self, "Lỗi", "Tên gói không được để trống")
+    def save(self):
+        values = self._validate()
+        if not values:
             return
+        name, price, duration, sessions = values
 
         session = get_session()
         try:
@@ -88,9 +106,9 @@ class PackageForm(QDialog):
                 package = Package()
                 session.add(package)
             package.name = name
-            package.price = float(price)
-            package.duration_days = int(duration)
-            package.sessions = int(sessions) if sessions else None
+            package.price = price
+            package.duration_days = duration
+            package.sessions = sessions
             session.commit()
             self.accept()
         finally:

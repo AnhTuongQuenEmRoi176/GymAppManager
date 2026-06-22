@@ -47,6 +47,7 @@ class TabQRDemo(QWidget):
         self.btn_create = QPushButton("Tạo mã QR")
         self.btn_create.setObjectName("primaryButton")
         self.btn_export = QPushButton("Xuất mã QR")
+        self.btn_export.setObjectName("secondaryButton")
         controls.addWidget(self.type_combo)
         controls.addWidget(self.entity_combo, 1)
         controls.addWidget(self.btn_create)
@@ -214,3 +215,5 @@ class TabQRDemo(QWidget):
                 QMessageBox.information(self, "Hoàn tất", f"Đã xuất sang {dest}")
             except Exception as exc:
                 QMessageBox.critical(self, "Lỗi", f"Xuất thất bại: {exc}")
+
+

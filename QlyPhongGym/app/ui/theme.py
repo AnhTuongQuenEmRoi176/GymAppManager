@@ -2,18 +2,56 @@
 from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QLabel, QTableWidget
 
 
-SURFACE = "#06111f"
-SURFACE_LOW = "#0b1828"
-SURFACE_CARD = "#101f31"
-SURFACE_CARD_HIGH = "#18283a"
-BORDER = "#26384b"
-TEXT = "#e8f2ff"
-TEXT_MUTED = "#94a3b8"
-PRIMARY = "#ccff00"
-PRIMARY_DARK = "#263500"
-WARNING = "#ffb800"
-ERROR = "#ff4d4d"
-INFO = "#00d7ff"
+DARK = {
+    "surface": "#06111f",
+    "surface_low": "#0b1828",
+    "surface_card": "#101f31",
+    "surface_high": "#18283a",
+    "sidebar": "#020a13",
+    "border": "#26384b",
+    "text": "#e8f2ff",
+    "muted": "#94a3b8",
+    "primary": "#ccff00",
+    "primary_text": "#1f2a00",
+    "secondary": "#00d7ff",
+    "warning": "#ffb800",
+    "danger": "#ff4d4d",
+    "success": "#29d391",
+    "table_alt": "#0c1a2a",
+    "selection": "#314716",
+}
+
+LIGHT = {
+    "surface": "#f4f7fb",
+    "surface_low": "#eef3f8",
+    "surface_card": "#ffffff",
+    "surface_high": "#e7eef6",
+    "sidebar": "#0d1724",
+    "border": "#d6e0ea",
+    "text": "#142033",
+    "muted": "#607086",
+    "primary": "#9bd400",
+    "primary_text": "#172000",
+    "secondary": "#007f9e",
+    "warning": "#b77900",
+    "danger": "#c83349",
+    "success": "#138a61",
+    "table_alt": "#f7fafe",
+    "selection": "#dff3a8",
+}
+
+SURFACE = DARK["surface"]
+SURFACE_LOW = DARK["surface_low"]
+SURFACE_CARD = DARK["surface_card"]
+SURFACE_CARD_HIGH = DARK["surface_high"]
+BORDER = DARK["border"]
+TEXT = DARK["text"]
+TEXT_MUTED = DARK["muted"]
+PRIMARY = DARK["primary"]
+PRIMARY_DARK = DARK["primary_text"]
+WARNING = DARK["warning"]
+ERROR = DARK["danger"]
+INFO = DARK["secondary"]
 
 
 def format_money(value):
@@ -49,79 +87,91 @@ def configure_table(table: QTableWidget):
     table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
 
-APP_STYLESHEET = f"""
+def build_stylesheet(mode="dark"):
+    c = LIGHT if mode == "light" else DARK
+    return f"""
 QWidget {{
-    background: {SURFACE};
-    color: {TEXT};
+    background: {c['surface']};
+    color: {c['text']};
     font-family: "Segoe UI", "Inter", Arial, sans-serif;
     font-size: 13px;
 }}
 
+QLabel {{
+    background: transparent;
+    border: none;
+}}
+
 QMainWindow, QDialog {{
-    background: {SURFACE};
+    background: {c['surface']};
 }}
 
 QFrame#sidebar {{
-    background: #020a13;
-    border-right: 1px solid {BORDER};
+    background: {c['sidebar']};
+    border-right: 1px solid {c['border']};
 }}
 
 QLabel#logoLabel {{
     background: transparent;
-    border: 1px solid {BORDER};
+    border: 1px solid {c['border']};
     border-radius: 8px;
 }}
 
 QLabel#brandTitle {{
-    color: {TEXT};
+    color: #ffffff;
     font-size: 20px;
     font-weight: 800;
 }}
 
-QLabel#brandSubTitle, QLabel#mutedLabel {{
-    color: {TEXT_MUTED};
+QLabel#brandSubTitle {{
+    color: #9fb0c4;
+}}
+
+QLabel#mutedLabel {{
+    color: {c['muted']};
 }}
 
 QPushButton#sidebarButton {{
     background: transparent;
-    color: {TEXT_MUTED};
+    color: #aab8ca;
     border: 1px solid transparent;
     border-radius: 8px;
     padding: 11px 13px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 650;
 }}
 
 QPushButton#sidebarButton:hover {{
-    background: {SURFACE_LOW};
-    color: {TEXT};
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
 }}
 
 QPushButton#sidebarButton[active="true"] {{
-    background: {PRIMARY};
-    color: #152000;
-    border-color: {PRIMARY};
+    background: {c['primary']};
+    color: {c['primary_text']};
+    border-color: {c['primary']};
 }}
 
 QFrame#contentFrame {{
-    background: {SURFACE};
+    background: {c['surface']};
 }}
 
 QLabel#pageTitle {{
-    color: {TEXT};
-    font-size: 22px;
-    font-weight: 800;
+    color: {c['text']};
+    font-size: 23px;
+    font-weight: 850;
+    line-height: 30px;
 }}
 
 QLabel#sectionLabel {{
-    color: {TEXT};
+    color: {c['text']};
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 750;
 }}
 
 QFrame#panel, QGroupBox {{
-    background: {SURFACE_CARD};
-    border: 1px solid {BORDER};
+    background: {c['surface_card']};
+    border: 1px solid {c['border']};
     border-radius: 8px;
 }}
 
@@ -136,57 +186,80 @@ QGroupBox::title {{
     subcontrol-position: top left;
     left: 14px;
     padding: 0 6px;
-    color: {PRIMARY};
+    color: {c['primary']};
+    background: transparent;
 }}
 
 QPushButton {{
-    background: {SURFACE_CARD_HIGH};
-    color: {TEXT};
-    border: 1px solid {BORDER};
+    background: {c['surface_high']};
+    color: {c['text']};
+    border: 1px solid {c['border']};
     border-radius: 8px;
     padding: 8px 13px;
-    font-weight: 700;
+    font-weight: 750;
 }}
 
 QPushButton:hover:!disabled {{
-    background: #20354d;
-    border-color: #3b5874;
+    border-color: {c['secondary']};
+}}
+
+QPushButton:pressed:!disabled {{
+    padding-top: 9px;
+    padding-bottom: 7px;
 }}
 
 QPushButton:disabled {{
-    background: #172231;
-    color: #64748b;
-    border-color: #233244;
+    background: {c['surface_low']};
+    color: {c['muted']};
+    border-color: {c['border']};
 }}
 
 QPushButton#primaryButton, QPushButton[variant="primary"] {{
-    background: {PRIMARY};
-    color: {PRIMARY_DARK};
-    border-color: {PRIMARY};
+    background: {c['primary']};
+    color: {c['primary_text']};
+    border-color: {c['primary']};
+}}
+
+QPushButton#secondaryButton, QPushButton[variant="secondary"] {{
+    background: {c['secondary']};
+    color: #03131a;
+    border-color: {c['secondary']};
+}}
+
+QPushButton#successButton, QPushButton[variant="success"] {{
+    background: {c['success']};
+    color: #03170f;
+    border-color: {c['success']};
+}}
+
+QPushButton#warningButton, QPushButton[variant="warning"] {{
+    background: {c['warning']};
+    color: #1f1600;
+    border-color: {c['warning']};
 }}
 
 QPushButton#dangerButton, QPushButton[variant="danger"] {{
-    background: #3a1720;
-    color: #ffd6dc;
-    border-color: #7f1d1d;
+    background: {c['danger']};
+    color: #ffffff;
+    border-color: {c['danger']};
 }}
 
 QPushButton#ghostButton, QPushButton[variant="ghost"] {{
     background: transparent;
-    color: {TEXT};
+    color: {c['text']};
 }}
 
 QLineEdit, QComboBox, QDateEdit, QSpinBox, QTextEdit {{
-    background: {SURFACE_LOW};
-    color: {TEXT};
-    border: 1px solid {BORDER};
+    background: {c['surface_low']};
+    color: {c['text']};
+    border: 1px solid {c['border']};
     border-radius: 8px;
     padding: 7px 9px;
     min-height: 22px;
 }}
 
 QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QTextEdit:focus {{
-    border-color: {PRIMARY};
+    border-color: {c['primary']};
 }}
 
 QComboBox::drop-down, QDateEdit::drop-down {{
@@ -195,27 +268,27 @@ QComboBox::drop-down, QDateEdit::drop-down {{
 }}
 
 QTableWidget {{
-    background: {SURFACE_CARD};
-    alternate-background-color: #0c1a2a;
-    border: 1px solid {BORDER};
+    background: {c['surface_card']};
+    alternate-background-color: {c['table_alt']};
+    border: 1px solid {c['border']};
     border-radius: 8px;
     gridline-color: transparent;
-    selection-background-color: #314716;
-    selection-color: {TEXT};
+    selection-background-color: {c['selection']};
+    selection-color: {c['text']};
 }}
 
 QTableWidget::item {{
     padding: 7px;
-    border-bottom: 1px solid #17283a;
+    border-bottom: 1px solid {c['border']};
 }}
 
 QHeaderView::section {{
-    background: #142338;
-    color: {TEXT_MUTED};
+    background: {c['surface_high']};
+    color: {c['muted']};
     border: none;
-    border-bottom: 1px solid {BORDER};
+    border-bottom: 1px solid {c['border']};
     padding: 8px;
-    font-weight: 800;
+    font-weight: 850;
 }}
 
 QScrollArea {{
@@ -224,35 +297,35 @@ QScrollArea {{
 }}
 
 QSplitter::handle {{
-    background: {BORDER};
+    background: {c['border']};
 }}
 
-QFrame#statCard {{
-    background: {SURFACE_CARD};
-    border: 1px solid {BORDER};
+QFrame#statCard, QFrame#trainerCard {{
+    background: {c['surface_card']};
+    border: 1px solid {c['border']};
     border-radius: 8px;
 }}
 
+QFrame#trainerCard:hover {{
+    border-color: {c['secondary']};
+}}
+
 QLabel#statValue {{
-    color: {PRIMARY};
+    color: {c['primary']};
     font-size: 21px;
     font-weight: 900;
 }}
 
 QLabel#statCaption {{
-    color: {TEXT_MUTED};
+    color: {c['muted']};
     font-size: 12px;
-    font-weight: 700;
-}}
-
-QFrame#trainerCard {{
-    background: {SURFACE_CARD};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
-}}
-
-QFrame#trainerCard:hover {{
-    border-color: #49637f;
-    background: #142438;
+    font-weight: 750;
 }}
 """
+
+
+def apply_app_theme(app, mode="dark"):
+    app.setStyleSheet(build_stylesheet(mode))
+
+
+APP_STYLESHEET = build_stylesheet("dark")

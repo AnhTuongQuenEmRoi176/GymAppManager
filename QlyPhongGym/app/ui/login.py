@@ -54,7 +54,9 @@ class LoginDialog(QDialog):
         self.btn_login = QPushButton("Đăng nhập")
         self.btn_login.setObjectName("primaryButton")
         self.btn_register = QPushButton("Đăng ký lễ tân")
+        self.btn_register.setObjectName("secondaryButton")
         self.btn_forgot = QPushButton("Quên mật khẩu")
+        self.btn_forgot.setObjectName("warningButton")
         button_layout.addWidget(self.btn_login)
         button_layout.addWidget(self.btn_register)
         button_layout.addWidget(self.btn_forgot)
@@ -158,6 +160,7 @@ class RegisterDialog(QDialog):
         self.btn_save = QPushButton("Đăng ký")
         self.btn_save.setObjectName("primaryButton")
         self.btn_cancel = QPushButton("Hủy")
+        self.btn_cancel.setObjectName("ghostButton")
         btn_layout.addStretch()
         btn_layout.addWidget(self.btn_cancel)
         btn_layout.addWidget(self.btn_save)
@@ -202,3 +205,5 @@ class RegisterDialog(QDialog):
             QMessageBox.critical(self, "Lỗi", f"Lỗi khi đăng ký: {exc}")
         finally:
             session.close()
+
+

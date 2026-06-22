@@ -23,6 +23,7 @@ class ConfirmSessionDialog(QDialog):
 
         buttons = QHBoxLayout()
         self.btn_cancel = QPushButton("Hủy")
+        self.btn_cancel.setObjectName("ghostButton")
         self.btn_confirm = QPushButton("Xác nhận")
         self.btn_confirm.setObjectName("primaryButton")
         buttons.addStretch()
@@ -33,3 +34,5 @@ class ConfirmSessionDialog(QDialog):
 
         self.btn_confirm.clicked.connect(self.accept)
         self.btn_cancel.clicked.connect(self.reject)
+
+

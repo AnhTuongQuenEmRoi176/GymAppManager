@@ -34,6 +34,7 @@ class TabMembers(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Tìm theo tên hoặc số điện thoại")
         self.btn_search = QPushButton("Tìm kiếm")
+        self.btn_search.setObjectName("secondaryButton")
         self.btn_add = QPushButton("Thêm hội viên")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search_input, 1)
@@ -43,13 +44,14 @@ class TabMembers(QWidget):
         layout.addWidget(toolbar)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Họ tên", "SĐT", "Trạng thái", "Gói đang dùng"])
+        self.table.setColumnCount(7)
+        self.table.setHorizontalHeaderLabels(["ID", "Họ tên", "SĐT", "Email", "Trạng thái", "Gói đang dùng", "Ngày thêm"])
         configure_table(self.table)
         layout.addWidget(self.table, 1)
 
         actions = QHBoxLayout()
         self.btn_edit = QPushButton("Sửa")
+        self.btn_edit.setObjectName("warningButton")
         self.btn_delete = QPushButton("Xóa")
         self.btn_delete.setObjectName("dangerButton")
         actions.addStretch()
@@ -85,8 +87,10 @@ class TabMembers(QWidget):
                     member.id,
                     member.user.full_name or member.user.username or "",
                     member.user.phone or "N/A",
+                    member.user.email or "",
                     member.status or "active",
                     active_packages,
+                    member.user.created_at.strftime("%d/%m/%Y") if member.user.created_at else "",
                 ]
                 for col, value in enumerate(values):
                     item = QTableWidgetItem(str(value))
@@ -141,4 +145,7 @@ class TabMembers(QWidget):
 
             dlg = MemberDetailDialog(member_id)
             dlg.exec()
+
+
+
 

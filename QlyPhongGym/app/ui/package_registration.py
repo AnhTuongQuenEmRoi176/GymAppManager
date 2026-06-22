@@ -263,3 +263,4 @@ class PackageRegistrationDialog(QDialog):
     def closeEvent(self, event):
         self.session.close()
         super().closeEvent(event)
+

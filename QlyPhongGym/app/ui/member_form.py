@@ -3,12 +3,17 @@ import shutil
 import uuid
 from datetime import datetime
 
-from PyQt6.QtWidgets import QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
 
 from app.auth import hash_password
 from app.db import get_session
 from app.models import Member, User
+from app.state import get_current_user
 from app.ui.theme import page_title
+from app.ui.validators import normalize_phone, parse_iso_date, validate_email, validate_phone, validate_required
+
+
+DEFAULT_PASSWORD = "12345678"
 
 
 class MemberForm(QDialog):
@@ -16,12 +21,12 @@ class MemberForm(QDialog):
         super().__init__()
         self.member_id = member_id
         self.setWindowTitle("Hội viên")
-        self.resize(520, 420)
+        self.resize(540, 480)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(14)
-        layout.addWidget(page_title("Thông tin hội viên", "Hồ sơ cá nhân và ảnh đại diện"))
+        layout.addWidget(page_title("Thông tin hội viên", "Tài khoản mặc định dùng SĐT, mật khẩu 12345678"))
 
         panel = QFrame()
         panel.setObjectName("panel")
@@ -30,25 +35,35 @@ class MemberForm(QDialog):
 
         self.name = QLineEdit()
         self.phone = QLineEdit()
+        self.email = QLineEdit()
         self.dob = QLineEdit()
         self.address = QLineEdit()
         self.avatar = QLineEdit()
         self.dob.setPlaceholderText("YYYY-MM-DD")
+        self.phone.setPlaceholderText("VD: 0912345678")
+        self.email.setPlaceholderText("Không bắt buộc")
         self.btn_choose_avatar = QPushButton("Chọn ảnh")
+        self.btn_choose_avatar.setObjectName("secondaryButton")
 
         form = QFormLayout()
-        form.addRow("Họ tên", self.name)
-        form.addRow("SĐT", self.phone)
+        form.addRow("Họ tên *", self.name)
+        form.addRow("SĐT *", self.phone)
+        form.addRow("Email", self.email)
         form.addRow("Ngày sinh", self.dob)
         form.addRow("Địa chỉ", self.address)
         form.addRow("Ảnh đại diện", self.avatar)
         form.addRow("", self.btn_choose_avatar)
         panel_layout.addLayout(form)
 
+        self.meta_label = QLabel("Tài khoản mới: username = SĐT, mật khẩu = 12345678")
+        self.meta_label.setObjectName("mutedLabel")
+        panel_layout.addWidget(self.meta_label)
+
         buttons = QHBoxLayout()
         self.btn_save = QPushButton("Lưu")
         self.btn_save.setObjectName("primaryButton")
         self.btn_cancel = QPushButton("Hủy")
+        self.btn_cancel.setObjectName("ghostButton")
         buttons.addStretch()
         buttons.addWidget(self.btn_cancel)
         buttons.addWidget(self.btn_save)
@@ -70,9 +85,12 @@ class MemberForm(QDialog):
                 return
             self.name.setText(member.user.full_name or "")
             self.phone.setText(member.user.phone or "")
+            self.email.setText(member.user.email or "")
             self.dob.setText(member.dob.isoformat() if member.dob else "")
             self.address.setText(member.address or "")
             self.avatar.setText(member.user.avatar or "")
+            created_at = member.user.created_at.strftime("%d/%m/%Y %H:%M") if member.user.created_at else "Chưa rõ"
+            self.meta_label.setText(f"Ngày thêm: {created_at} | Người thêm: chưa lưu trong schema hiện tại")
         finally:
             session.close()
 
@@ -89,15 +107,30 @@ class MemberForm(QDialog):
             return destination
         return avatar_path
 
-    def save(self):
+    def _validate(self):
         name = self.name.text().strip()
-        phone = self.phone.text().strip()
-        dob = self.dob.text().strip()
-        address = self.address.text().strip()
+        phone = normalize_phone(self.phone.text())
+        email = self.email.text().strip()
+        for error in (
+            validate_required(name, "Họ tên"),
+            validate_phone(phone),
+            validate_email(email),
+        ):
+            if error:
+                QMessageBox.warning(self, "Lỗi nhập liệu", error)
+                return None
+        try:
+            dob = parse_iso_date(self.dob.text(), "Ngày sinh")
+        except ValueError as exc:
+            QMessageBox.warning(self, "Lỗi nhập liệu", str(exc))
+            return None
+        return name, phone, email, dob, self.address.text().strip()
 
-        if not name:
-            QMessageBox.warning(self, "Lỗi", "Họ tên không được để trống")
+    def save(self):
+        values = self._validate()
+        if not values:
             return
+        name, phone, email, dob, address = values
 
         session = get_session()
         try:
@@ -106,22 +139,27 @@ class MemberForm(QDialog):
                 if not member:
                     QMessageBox.warning(self, "Lỗi", "Hội viên không tồn tại")
                     return
+                duplicate = session.query(User).filter(User.username == phone, User.id != member.user_id).first()
+                if duplicate:
+                    QMessageBox.warning(self, "Lỗi", "SĐT này đã được dùng làm tài khoản khác")
+                    return
                 user = member.user
             else:
-                user = User(username=f"mem_{int(datetime.utcnow().timestamp())}", password_hash=hash_password("mem123"), full_name=name, phone=phone)
+                if session.query(User).filter(User.username == phone).first():
+                    QMessageBox.warning(self, "Lỗi", "SĐT này đã tồn tại, không thể dùng làm tài khoản mới")
+                    return
+                user = User(username=phone, password_hash=hash_password(DEFAULT_PASSWORD), full_name=name, phone=phone, email=email)
                 session.add(user)
                 session.flush()
                 member = Member(user_id=user.id)
                 session.add(member)
 
+            user.username = phone
             user.full_name = name
             user.phone = phone
+            user.email = email or None
             member.address = address
-            try:
-                member.dob = datetime.fromisoformat(dob).date() if dob else None
-            except Exception:
-                QMessageBox.warning(self, "Lỗi", "Ngày sinh phải theo định dạng YYYY-MM-DD")
-                return
+            member.dob = dob
             copied_avatar = self._copy_avatar_if_needed(self.avatar.text().strip(), "mem")
             if copied_avatar:
                 user.avatar = copied_avatar

@@ -127,11 +127,11 @@ class TabTrainers(QWidget):
         info_layout = QVBoxLayout()
         name = QLabel(trainer.user.full_name or trainer.user.username or f"PT {trainer.id}")
         name.setObjectName("sectionLabel")
-        subtitle = QLabel(f"SĐT: {trainer.user.phone or 'Chưa cập nhật'} | Bộ môn: {trainer.specialty or 'Chưa cập nhật'}")
+        subtitle = QLabel(f"SĐT: {trainer.user.phone or 'Chưa cập nhật'} | Email: {trainer.user.email or 'Chưa cập nhật'} | Bộ môn: {trainer.specialty or 'Chưa cập nhật'}")
         subtitle.setObjectName("mutedLabel")
         status = "Hoạt động" if (not trainer.end_date or trainer.end_date >= date.today()) else "Ngưng"
         meta = QLabel(
-            f"Trạng thái: {status} | Ngày vào: {trainer.start_date or 'Chưa rõ'} | Lương cứng: {format_money(trainer.base_salary)}"
+            f"Trạng thái: {status} | Ngày vào: {trainer.start_date or 'Chưa rõ'} | Ngày thêm: {trainer.user.created_at.strftime('%d/%m/%Y') if trainer.user.created_at else 'Chưa rõ'} | Lương cứng: {format_money(trainer.base_salary)}"
         )
         meta.setObjectName("mutedLabel")
         info_layout.addWidget(name)
@@ -152,7 +152,9 @@ class TabTrainers(QWidget):
 
         buttons = QVBoxLayout()
         btn_detail = QPushButton("Chi tiết")
+        btn_detail.setObjectName("secondaryButton")
         btn_edit = QPushButton("Sửa")
+        btn_edit.setObjectName("warningButton")
         btn_delete = QPushButton("Xóa")
         btn_delete.setObjectName("dangerButton")
         btn_detail.clicked.connect(lambda _, tid=trainer.id: self.open_detail(tid))
@@ -196,4 +198,7 @@ class TabTrainers(QWidget):
 
         dlg = TrainerDetailDialog(trainer_id)
         dlg.exec()
+
+
+
 

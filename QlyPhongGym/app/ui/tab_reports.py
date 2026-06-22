@@ -1,10 +1,5 @@
 ﻿from datetime import datetime, time
 
-import matplotlib.pyplot as plt
-import pandas as pd
-import pyqtgraph as pg
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from pyqtgraph import PlotWidget
 from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -15,6 +10,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -33,9 +29,19 @@ class TabReports(QWidget):
         self.pt_summary = []
         self.package_summary = []
 
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        body = QWidget()
+        layout = QVBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
+        scroll.setWidget(body)
+        root_layout.addWidget(scroll, 1)
+
         layout.addWidget(page_title("Thống kê doanh thu", "Báo cáo doanh thu, lương PT và lãi/lỗ"))
 
         filters = QFrame()
@@ -59,6 +65,7 @@ class TabReports(QWidget):
         self.btn_view = QPushButton("Xem báo cáo")
         self.btn_view.setObjectName("primaryButton")
         self.btn_export = QPushButton("Xuất Excel")
+        self.btn_export.setObjectName("secondaryButton")
         filters_layout.addWidget(self.btn_view)
         filters_layout.addWidget(self.btn_export)
         filters_layout.addStretch()
@@ -75,6 +82,7 @@ class TabReports(QWidget):
 
         charts_panel = QFrame()
         charts_panel.setObjectName("panel")
+        charts_panel.setMinimumHeight(360)
         self.charts_layout = QHBoxLayout(charts_panel)
         self.charts_layout.setContentsMargins(16, 16, 16, 16)
         self.charts_layout.setSpacing(16)
@@ -211,6 +219,11 @@ class TabReports(QWidget):
         self._render_summary_tables(trainer_counts, trainer_names, trainer_revenue, package_totals, package_counts)
 
     def _render_charts(self, type_sums, trainer_counts, trainer_names, trainer_revenue):
+        import matplotlib.pyplot as plt
+        import pyqtgraph as pg
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+        from pyqtgraph import PlotWidget
+
         self._clear_charts()
 
         fig1, ax1 = plt.subplots(figsize=(4, 3), facecolor="#101f31")
@@ -291,6 +304,8 @@ class TabReports(QWidget):
             self.package_summary.append({"package": package_name, "count": count, "revenue": revenue})
 
     def export_excel(self):
+        import pandas as pd
+
         start_dt, end_dt = self._date_range()
         session = get_session()
         try:
@@ -315,3 +330,7 @@ class TabReports(QWidget):
             if self.package_summary:
                 pd.DataFrame(self.package_summary).to_excel(writer, sheet_name="Package Summary", index=False)
         QMessageBox.information(self, "Hoàn tất", f"Đã lưu báo cáo vào: {path}")
+
+
+
+

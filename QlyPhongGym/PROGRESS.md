@@ -71,3 +71,110 @@
 - Cần test lại camera/OpenCV trên môi trường Windows để tránh lỗi `QImage`/`QPixmap` khi đọc ảnh
 - Nên dùng `session.query(...).count()` thận trọng vì có thể chậm trên bảng lớn; cân nhắc load số liệu tổng hợp riêng nếu cần
 - `MemberPackage.end_date >= date.today()` dùng để xác định gói PT hiện tại
+
+---
+
+## Cập nhật 2026-06-23 - Tối ưu hiệu năng và giao diện
+
+### Đã làm
+- `app/main.py`
+  - Chuyển MainWindow sang lazy-load tab: app chỉ tạo tab khi người dùng mở tab đó.
+  - Loại import trực tiếp toàn bộ tab lúc khởi động để giảm thời gian mở app và RAM ban đầu.
+  - Thêm nút chuyển chế độ sáng/tối ở sidebar, dùng `apply_app_theme()`.
+
+- `app/ui/theme.py`
+  - Tách bảng màu dark/light và thêm `build_stylesheet(mode)`, `apply_app_theme(app, mode)`.
+  - Bỏ nền/box sau `QLabel` thường để text không bị lệch với button/panel.
+  - Làm chữ title/section/stat rõ hơn.
+  - Thêm màu button theo vai trò: primary, secondary, success, warning, danger, ghost.
+  - Giữ `configure_table()` khóa edit trực tiếp trong bảng, tránh sửa nhầm ô.
+
+- `app/ui/tab_dashboard.py`
+  - Lazy import `CameraWorker` khi bấm Bật camera, không nạp camera/OpenCV lúc mở app.
+  - Lazy import `cv2` khi cần lưu ảnh check-in.
+  - Sửa chế độ QR tự động bị quét liên tục gây lag:
+    - thêm `pending_entities`, `confirming`, `auto_pause_until` để không xác nhận chồng nhau;
+    - tăng cooldown auto scan;
+    - auto check-in không bật QMessageBox liên tục;
+    - không xóa debounce ngay sau auto confirm.
+
+- `app/utils/camera_worker.py`
+  - Lazy import `cv2` và `decode_qr_from_frame` bên trong `run()`.
+  - Giảm FPS mặc định xuống 10.
+  - Chỉ decode QR mỗi vài frame (`decode_every=3`) để giảm tải CPU.
+
+- `app/ui/tab_reports.py`
+  - Lazy import `matplotlib`, `pyqtgraph` chỉ khi bấm Xem báo cáo.
+  - Lazy import `pandas` chỉ khi bấm Xuất Excel.
+  - Nút Xuất Excel dùng màu secondary.
+
+- Các tab/form UI
+  - Tô màu nút theo chức năng ở các màn chính: tìm/xuất/chi tiết = secondary, sửa = warning, xóa = danger, bật camera/thêm gói = success, hủy = ghost.
+
+### Kiểm tra đã chạy
+- Kiểm tra syntax trực tiếp bằng `compile()` cho toàn bộ `app/ui/*.py`, `app/main.py`, `app/utils/camera_worker.py`.
+- Kiểm tra import: `app.main`, `app.ui.tab_dashboard`, `app.ui.tab_reports` import OK.
+- Xác nhận sau import app chính chưa nạp các thư viện nặng: `cv2=False`, `pandas=False`, `matplotlib=False`.
+
+### Ghi chú cho AI tiếp theo
+- Project đang nằm ở `D:\GymAppManager\QlyPhongGym` trong phiên này, không phải `D:\QlyPhongGym`.
+- Nếu test bằng `python -m compileall app` gặp PermissionError ở `__pycache__`, dùng `python -B` hoặc kiểm tra syntax bằng `compile()` để tránh ghi `.pyc`.
+- Cần test thủ công camera thật để xác nhận cooldown auto scan phù hợp thực tế.
+- Có thể tiếp tục làm đẹp sâu hơn bằng cách thêm icon vào button, nhưng hiện chưa thêm dependency icon để giữ app nhẹ.
+
+---
+
+## Cập nhật 2026-06-23 - Check-in chi tiết, validate form, tài khoản mặc định
+
+### Đã làm
+- `app/ui/validators.py`
+  - Thêm helper validate dùng chung: bắt buộc, SĐT, email, ngày ISO `YYYY-MM-DD`, số tiền.
+
+- `app/ui/member_form.py`
+  - Thêm trường Email.
+  - Validate họ tên, SĐT, email, ngày sinh.
+  - Khi tạo hội viên mới: username = SĐT, mật khẩu mặc định = `12345678`.
+  - Kiểm tra trùng username/SĐT trước khi tạo hoặc sửa.
+  - Hiển thị ngày thêm từ `users.created_at`; người thêm hiện chưa lưu được vì schema chưa có cột `created_by` cho user/member.
+
+- `app/ui/trainer_form.py`
+  - Thêm trường Email.
+  - Validate họ tên, SĐT, email, bộ môn, ngày vào, lương cứng.
+  - Khi tạo PT mới: username = SĐT, mật khẩu mặc định = `12345678`.
+  - Kiểm tra trùng username/SĐT trước khi tạo hoặc sửa.
+  - Hiển thị ngày thêm từ `users.created_at`; người thêm hiện chưa lưu được vì schema chưa có cột `created_by` cho user/trainer.
+
+- `app/ui/package_form.py`
+  - Validate tên gói, giá, thời hạn, số buổi.
+
+- `app/ui/receptionist_form.py`
+  - Validate username, họ tên, SĐT, mật khẩu tối thiểu 8 ký tự khi tạo mới/đổi mật khẩu.
+  - Kiểm tra trùng username/SĐT.
+
+- `app/ui/tab_members.py`
+  - Bảng hội viên thêm cột Email và Ngày thêm.
+
+- `app/ui/tab_trainers.py`
+  - Card PT hiển thị thêm Email và Ngày thêm.
+
+- `app/ui/checkin_detail.py`
+  - Double click lịch sử check-in mở dialog chi tiết có scroll.
+  - Nếu là buổi tập PT, tự tìm bản ghi đối ứng cùng ảnh/thời điểm để hiển thị cả hội viên và PT.
+  - Hiển thị avatar từng người và ảnh snapshot khi quét.
+  - Hiển thị lễ tân quét, nguồn, QR payload.
+
+- `app/ui/tab_dashboard.py`
+  - Chế độ tự động sau khi lưu check-in vẫn giữ ảnh và thông tin người vừa quét ở panel bên phải, chỉ đổi trạng thái thành đã tự động lưu.
+
+- `app/ui/tab_reports.py`
+  - Bọc màn báo cáo doanh thu bằng `QScrollArea`.
+  - Tăng chiều cao vùng biểu đồ để tránh bảng/biểu đồ đè nhau trên màn hình thấp.
+
+### Kiểm tra đã chạy
+- Syntax toàn bộ `app/ui/*.py`, `app/main.py`, `app/utils/camera_worker.py` OK bằng `python -B` + `compile()`.
+- Import `app.main`, `member_form`, `trainer_form`, `checkin_detail`, `tab_reports` OK.
+- Sau import vẫn chưa nạp thư viện nặng: `cv2=False`, `pandas=False`, `matplotlib=False`.
+
+### Còn nên làm nếu muốn quản lý người thêm thật sự
+- Cần migration DB thêm cột `created_by` cho `users` hoặc riêng `members/trainers/packages`.
+- Sau đó cập nhật model SQLAlchemy và form tạo mới để lưu `get_current_user().id`.

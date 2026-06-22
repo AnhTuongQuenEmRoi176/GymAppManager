@@ -3,7 +3,6 @@ import time
 import uuid
 from datetime import date, datetime
 
-import cv2
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
@@ -23,7 +22,6 @@ from app.models import Checkin, Member, MemberPackage, Package, PTSession, QRDem
 from app.state import get_current_user
 from app.ui.confirm_session import ConfirmSessionDialog
 from app.ui.theme import page_title
-from app.utils.camera_worker import CameraWorker
 
 
 class TabDashboard(QWidget):
@@ -34,16 +32,19 @@ class TabDashboard(QWidget):
         self.pending_entities = None
         self.pending_photo = None
         self.pending_payloads = []
+        self.confirming = False
+        self.auto_pause_until = 0
+        self.last_auto_confirm = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
         layout.addWidget(page_title("Trang chủ quét QR", "Kiểm tra hội viên, PT và xác nhận buổi tập"))
 
         toolbar = QFrame()
         toolbar.setObjectName("panel")
         toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setContentsMargins(16, 14, 16, 14)
+        toolbar_layout.setContentsMargins(16, 12, 16, 12)
         toolbar_layout.addWidget(QLabel("Chế độ"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Thủ công", "Tự động"])
@@ -55,25 +56,28 @@ class TabDashboard(QWidget):
         layout.addWidget(toolbar)
 
         content = QHBoxLayout()
-        content.setSpacing(16)
+        content.setSpacing(14)
 
         camera_panel = QFrame()
         camera_panel.setObjectName("panel")
         camera_layout = QVBoxLayout(camera_panel)
         camera_layout.setContentsMargins(16, 16, 16, 16)
-        camera_layout.setSpacing(12)
-        camera_layout.addWidget(QLabel("Camera"))
+        camera_layout.setSpacing(10)
+        title = QLabel("Camera")
+        title.setObjectName("sectionLabel")
+        camera_layout.addWidget(title)
 
         self.video_frame = QLabel("Camera chưa bật")
         self.video_frame.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.video_frame.setMinimumSize(680, 420)
+        self.video_frame.setMinimumSize(620, 380)
         self.video_frame.setStyleSheet("border: 1px solid #26384b; border-radius: 8px; background: #020a13; color: #94a3b8;")
         camera_layout.addWidget(self.video_frame, 1)
 
         camera_buttons = QHBoxLayout()
         self.btn_on = QPushButton("Bật camera")
-        self.btn_on.setObjectName("primaryButton")
+        self.btn_on.setObjectName("successButton")
         self.btn_off = QPushButton("Tắt camera")
+        self.btn_off.setObjectName("dangerButton")
         self.btn_off.setEnabled(False)
         camera_buttons.addWidget(self.btn_on)
         camera_buttons.addWidget(self.btn_off)
@@ -82,12 +86,12 @@ class TabDashboard(QWidget):
         content.addWidget(camera_panel, 2)
 
         info_panel = QGroupBox("Thông tin check-in")
-        info_panel.setMinimumWidth(360)
+        info_panel.setMinimumWidth(340)
         info_layout = QVBoxLayout(info_panel)
-        info_layout.setSpacing(14)
+        info_layout.setSpacing(12)
 
         self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(150, 150)
+        self.avatar_label.setFixedSize(140, 140)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setStyleSheet("border: 1px solid #26384b; border-radius: 8px; background: #020a13; color: #94a3b8;")
         self.avatar_label.setText("Ảnh")
@@ -96,7 +100,7 @@ class TabDashboard(QWidget):
         self.info = QLabel("Đưa mã QR vào camera để hiển thị thông tin hội viên hoặc PT.")
         self.info.setWordWrap(True)
         self.info.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.info.setMinimumHeight(160)
+        self.info.setMinimumHeight(150)
         info_layout.addWidget(self.info)
 
         self.btn_confirm = QPushButton("Xác nhận check-in")
@@ -108,14 +112,16 @@ class TabDashboard(QWidget):
 
         layout.addLayout(content, 1)
 
-        self.btn_confirm.clicked.connect(self.handle_confirm)
+        self.btn_confirm.clicked.connect(lambda: self.handle_confirm(show_message=True))
         self.btn_on.clicked.connect(self.start_camera)
         self.btn_off.clicked.connect(self.stop_camera)
 
     def start_camera(self):
         if self.worker and self.worker.isRunning():
             return
-        self.worker = CameraWorker(camera_index=0, fps=12)
+        from app.utils.camera_worker import CameraWorker
+
+        self.worker = CameraWorker(camera_index=0, fps=10)
         self.worker.frame_ready.connect(self.on_frame)
         self.worker.start()
         self.btn_on.setEnabled(False)
@@ -208,7 +214,10 @@ class TabDashboard(QWidget):
         if not decoded_list:
             return
 
-        now = datetime.utcnow().timestamp()
+        now = time.monotonic()
+        if self.confirming or self.pending_entities or now < self.auto_pause_until:
+            return
+
         entities = {"member": None, "trainer": None}
         session = get_session()
         try:
@@ -217,7 +226,8 @@ class TabDashboard(QWidget):
                 if not payload:
                     continue
                 last = self.last_seen.get(payload, 0)
-                if now - last < 3:
+                cooldown = 12 if self.mode_combo.currentText() == "Tự động" else 4
+                if now - last < cooldown:
                     continue
                 self.last_seen[payload] = now
                 try:
@@ -228,10 +238,15 @@ class TabDashboard(QWidget):
             if entities["member"] or entities["trainer"]:
                 resources_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "checkins")
                 os.makedirs(resources_dir, exist_ok=True)
-                bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
-                filename = f"chk_{int(time.time())}_{uuid.uuid4().hex}.jpg"
-                filepath = os.path.join(resources_dir, filename)
-                cv2.imwrite(filepath, bgr)
+                try:
+                    import cv2
+
+                    bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+                    filename = f"chk_{int(time.time())}_{uuid.uuid4().hex}.jpg"
+                    filepath = os.path.join(resources_dir, filename)
+                    cv2.imwrite(filepath, bgr)
+                except Exception:
+                    filepath = None
 
                 self.pending_entities = entities
                 self.pending_photo = filepath
@@ -250,14 +265,15 @@ class TabDashboard(QWidget):
                 self.btn_confirm.setVisible(True)
 
                 if self.mode_combo.currentText() == "Tự động" and not (entities["member"] and entities["trainer"]):
-                    self.handle_confirm()
+                    self.handle_confirm(show_message=False, automatic=True)
         finally:
             session.close()
 
-    def handle_confirm(self):
-        if not self.pending_entities:
+    def handle_confirm(self, show_message=True, automatic=False):
+        if not self.pending_entities or self.confirming:
             return
 
+        self.confirming = True
         session = get_session()
         try:
             current_user = get_current_user()
@@ -325,18 +341,31 @@ class TabDashboard(QWidget):
                     member_package.sessions_remaining -= 1
 
             session.commit()
-            self.info.setText("Check-in đã được lưu thành công.")
-            self.status_label.setText("Đã xác nhận")
+            if automatic:
+                self.status_label.setText("Đã tự động lưu check-in")
+            else:
+                self.info.setText("Check-in đã được lưu thành công.")
+                self.status_label.setText("Đã xác nhận")
             self.btn_confirm.setVisible(False)
 
-            for payload in self.pending_payloads:
-                self.last_seen.pop(payload, None)
+            if not automatic:
+                for payload in self.pending_payloads:
+                    self.last_seen.pop(payload, None)
+            else:
+                self.auto_pause_until = time.monotonic() + 5
+
             self.pending_entities = None
             self.pending_photo = None
             self.pending_payloads = []
-            QMessageBox.information(self, "Thành công", "Lưu check-in thành công")
+            if show_message:
+                QMessageBox.information(self, "Thành công", "Lưu check-in thành công")
         except Exception as exc:
             session.rollback()
-            QMessageBox.critical(self, "Lỗi", f"Xác nhận thất bại: {exc}")
+            if show_message:
+                QMessageBox.critical(self, "Lỗi", f"Xác nhận thất bại: {exc}")
+            else:
+                self.status_label.setText(f"Lỗi auto check-in: {exc}")
         finally:
             session.close()
+            self.confirming = False
+

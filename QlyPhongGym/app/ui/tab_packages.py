@@ -35,10 +35,13 @@ class TabPackages(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Tìm kiếm theo tên gói")
         self.btn_search = QPushButton("Tìm")
+        self.btn_search.setObjectName("secondaryButton")
         self.btn_sort = QPushButton("Giá tăng dần")
+        self.btn_sort.setObjectName("secondaryButton")
         self.btn_register = QPushButton("Đăng ký gói")
         self.btn_register.setObjectName("primaryButton")
         self.btn_add = QPushButton("Thêm gói")
+        self.btn_add.setObjectName("successButton")
         toolbar_layout.addWidget(self.search_input, 1)
         toolbar_layout.addWidget(self.btn_search)
         toolbar_layout.addWidget(self.btn_sort)
@@ -55,6 +58,7 @@ class TabPackages(QWidget):
 
         actions = QHBoxLayout()
         self.btn_edit = QPushButton("Sửa")
+        self.btn_edit.setObjectName("warningButton")
         self.btn_delete = QPushButton("Xóa")
         self.btn_delete.setObjectName("dangerButton")
         actions.addStretch()
@@ -147,4 +151,6 @@ class TabPackages(QWidget):
         finally:
             session.close()
         self.refresh()
+
+
 

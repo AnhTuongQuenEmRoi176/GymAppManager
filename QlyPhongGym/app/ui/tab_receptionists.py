@@ -33,6 +33,7 @@ class TabReceptionists(QWidget):
         self.search = QLineEdit()
         self.search.setPlaceholderText("Tìm theo ID, SĐT hoặc tên")
         self.btn_search = QPushButton("Tìm")
+        self.btn_search.setObjectName("secondaryButton")
         self.btn_add = QPushButton("Thêm lễ tân")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search, 1)
@@ -49,6 +50,7 @@ class TabReceptionists(QWidget):
 
         actions = QHBoxLayout()
         self.btn_edit = QPushButton("Sửa")
+        self.btn_edit.setObjectName("warningButton")
         self.btn_delete = QPushButton("Xóa")
         self.btn_delete.setObjectName("dangerButton")
         actions.addStretch()
@@ -133,4 +135,6 @@ class TabReceptionists(QWidget):
         finally:
             session.close()
         self.refresh()
+
+
 
