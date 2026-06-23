@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Quản lý Phòng Gym")
+        self.setWindowTitle("Apex Gym - Quản lý phòng gym")
         self.resize(1280, 780)
         self.setMinimumSize(1080, 680)
         self.nav_buttons = []
@@ -61,9 +61,9 @@ class MainWindow(QMainWindow):
             )
         sidebar_layout.addWidget(logo)
 
-        brand = QLabel("Gym Master")
+        brand = QLabel("Apex Gym")
         brand.setObjectName("brandTitle")
-        subtitle = QLabel("Quản trị vận hành")
+        subtitle = QLabel("Smart Gym Manager")
         subtitle.setObjectName("brandSubTitle")
         sidebar_layout.addWidget(brand)
         sidebar_layout.addWidget(subtitle)

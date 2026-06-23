@@ -1,16 +1,17 @@
-﻿import os
+﻿from PyQt6.QtCore import QDate
+import os
 import shutil
 import uuid
 from datetime import datetime
 
-from PyQt6.QtWidgets import QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QDateEdit, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
 
 from app.auth import hash_password
 from app.db import get_session
 from app.models import Member, User
 from app.state import get_current_user
 from app.ui.theme import page_title
-from app.ui.validators import normalize_phone, parse_iso_date, validate_email, validate_phone, validate_required
+from app.ui.validators import normalize_phone, validate_email, validate_phone, validate_required
 
 
 DEFAULT_PASSWORD = "12345678"
@@ -36,10 +37,12 @@ class MemberForm(QDialog):
         self.name = QLineEdit()
         self.phone = QLineEdit()
         self.email = QLineEdit()
-        self.dob = QLineEdit()
+        self.dob = QDateEdit()
         self.address = QLineEdit()
         self.avatar = QLineEdit()
-        self.dob.setPlaceholderText("YYYY-MM-DD")
+        self.dob.setCalendarPopup(True)
+        self.dob.setDisplayFormat("dd/MM/yyyy")
+        self.dob.setDate(QDate.currentDate().addYears(-18))
         self.phone.setPlaceholderText("VD: 0912345678")
         self.email.setPlaceholderText("Không bắt buộc")
         self.btn_choose_avatar = QPushButton("Chọn ảnh")
@@ -86,7 +89,8 @@ class MemberForm(QDialog):
             self.name.setText(member.user.full_name or "")
             self.phone.setText(member.user.phone or "")
             self.email.setText(member.user.email or "")
-            self.dob.setText(member.dob.isoformat() if member.dob else "")
+            if member.dob:
+                self.dob.setDate(QDate(member.dob.year, member.dob.month, member.dob.day))
             self.address.setText(member.address or "")
             self.avatar.setText(member.user.avatar or "")
             created_at = member.user.created_at.strftime("%d/%m/%Y %H:%M") if member.user.created_at else "Chưa rõ"
@@ -119,11 +123,7 @@ class MemberForm(QDialog):
             if error:
                 QMessageBox.warning(self, "Lỗi nhập liệu", error)
                 return None
-        try:
-            dob = parse_iso_date(self.dob.text(), "Ngày sinh")
-        except ValueError as exc:
-            QMessageBox.warning(self, "Lỗi nhập liệu", str(exc))
-            return None
+        dob = self.dob.date().toPyDate()
         return name, phone, email, dob, self.address.text().strip()
 
     def save(self):

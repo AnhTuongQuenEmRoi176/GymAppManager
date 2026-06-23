@@ -1,15 +1,16 @@
-﻿import os
+﻿from PyQt6.QtCore import QDate
+import os
 import shutil
 import uuid
 from datetime import datetime
 
-from PyQt6.QtWidgets import QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QDateEdit, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout
 
 from app.auth import hash_password
 from app.db import get_session
 from app.models import Trainer, User
 from app.ui.theme import page_title
-from app.ui.validators import normalize_phone, parse_iso_date, parse_money, validate_email, validate_phone, validate_required
+from app.ui.validators import normalize_phone, parse_money, validate_email, validate_phone, validate_required
 
 
 DEFAULT_PASSWORD = "12345678"
@@ -36,10 +37,12 @@ class TrainerForm(QDialog):
         self.phone = QLineEdit()
         self.email = QLineEdit()
         self.specialty = QLineEdit()
-        self.start_date = QLineEdit()
+        self.start_date = QDateEdit()
         self.base_salary = QLineEdit()
         self.avatar = QLineEdit()
-        self.start_date.setPlaceholderText("YYYY-MM-DD")
+        self.start_date.setCalendarPopup(True)
+        self.start_date.setDisplayFormat("dd/MM/yyyy")
+        self.start_date.setDate(QDate.currentDate())
         self.phone.setPlaceholderText("VD: 0912345678")
         self.email.setPlaceholderText("Không bắt buộc")
         self.base_salary.setPlaceholderText("Ví dụ: 5000000")
@@ -89,7 +92,8 @@ class TrainerForm(QDialog):
             self.phone.setText(trainer.user.phone or "")
             self.email.setText(trainer.user.email or "")
             self.specialty.setText(trainer.specialty or "")
-            self.start_date.setText(trainer.start_date.isoformat() if trainer.start_date else "")
+            if trainer.start_date:
+                self.start_date.setDate(QDate(trainer.start_date.year, trainer.start_date.month, trainer.start_date.day))
             self.base_salary.setText(str(trainer.base_salary or ""))
             self.avatar.setText(trainer.user.avatar or "")
             created_at = trainer.user.created_at.strftime("%d/%m/%Y %H:%M") if trainer.user.created_at else "Chưa rõ"
@@ -125,7 +129,7 @@ class TrainerForm(QDialog):
                 QMessageBox.warning(self, "Lỗi nhập liệu", error)
                 return None
         try:
-            start_date = parse_iso_date(self.start_date.text(), "Ngày vào")
+            start_date = self.start_date.date().toPyDate()
             base_salary = parse_money(self.base_salary.text(), "Lương cứng")
         except ValueError as exc:
             QMessageBox.warning(self, "Lỗi nhập liệu", str(exc))

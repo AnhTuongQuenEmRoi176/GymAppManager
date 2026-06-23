@@ -14,7 +14,8 @@ from PyQt6.QtWidgets import (
 )
 
 from app.db import get_session
-from app.models import Member, MemberPackage, User
+from app.models import Checkin, Member, MemberPackage, PTSession, QRDemo, User
+from app.state import is_admin
 from app.ui.member_form import MemberForm
 from app.ui.theme import configure_table, page_title
 
@@ -35,10 +36,14 @@ class TabMembers(QWidget):
         self.search_input.setPlaceholderText("Tìm theo tên hoặc số điện thoại")
         self.btn_search = QPushButton("Tìm kiếm")
         self.btn_search.setObjectName("secondaryButton")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("T?i l?i danh s?ch")
         self.btn_add = QPushButton("Thêm hội viên")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search_input, 1)
         toolbar_layout.addWidget(self.btn_search)
+        toolbar_layout.addWidget(self.btn_reload)
         toolbar_layout.addStretch()
         toolbar_layout.addWidget(self.btn_add)
         layout.addWidget(toolbar)
@@ -63,6 +68,7 @@ class TabMembers(QWidget):
         self.btn_edit.clicked.connect(self.edit_member)
         self.btn_delete.clicked.connect(self.delete_member)
         self.btn_search.clicked.connect(self.refresh)
+        self.btn_reload.clicked.connect(self.refresh)
         self.search_input.returnPressed.connect(self.refresh)
         self.table.itemDoubleClicked.connect(self.open_detail)
 
@@ -119,21 +125,40 @@ class TabMembers(QWidget):
             self.refresh()
 
     def delete_member(self):
+        if not is_admin():
+            QMessageBox.warning(self, "Kh?ng c? quy?n", "Ch? admin ???c x?a h?i vi?n")
+            return
         member_id = self.selected_member_id()
         if not member_id:
-            QMessageBox.information(self, "Chú ý", "Chọn hội viên để xóa")
-            return
-        if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa hội viên này?") != QMessageBox.StandardButton.Yes:
+            QMessageBox.information(self, "Ch? ?", "Ch?n h?i vi?n ?? x?a")
             return
         session = get_session()
         try:
             member = session.query(Member).filter(Member.id == member_id).first()
-            if member:
-                user = member.user
-                session.delete(member)
-                if user:
-                    session.delete(user)
-                session.commit()
+            if not member:
+                return
+            blockers = []
+            if session.query(MemberPackage).filter(MemberPackage.member_id == member.id).first():
+                blockers.append("??/?ang c? g?i t?p")
+            if session.query(Checkin).filter(Checkin.member_id == member.id).first():
+                blockers.append("?? c? l?ch s? check-in")
+            if session.query(PTSession).filter(PTSession.member_id == member.id).first():
+                blockers.append("?? c? bu?i t?p PT")
+            if session.query(QRDemo).filter(QRDemo.entity_type == "member", QRDemo.entity_id == member.id).first():
+                blockers.append("?? c? m? QR demo")
+            if blockers:
+                QMessageBox.warning(self, "Kh?ng th? x?a", "H?i vi?n c?n r?ng bu?c: " + ", ".join(blockers))
+                return
+            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a h?i vi?n n?y?") != QMessageBox.StandardButton.Yes:
+                return
+            user = member.user
+            session.delete(member)
+            if user:
+                session.delete(user)
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            QMessageBox.critical(self, "L?i", f"X?a th?t b?i: {exc}")
         finally:
             session.close()
         self.refresh()
@@ -145,7 +170,3 @@ class TabMembers(QWidget):
 
             dlg = MemberDetailDialog(member_id)
             dlg.exec()
-
-
-
-

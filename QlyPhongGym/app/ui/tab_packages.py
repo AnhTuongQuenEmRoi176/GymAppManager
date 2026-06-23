@@ -12,6 +12,7 @@
 
 from app.db import get_session
 from app.models import MemberPackage, Package
+from app.state import is_admin
 from app.ui.package_form import PackageForm
 from app.ui.package_registration import PackageRegistrationDialog
 from app.ui.theme import configure_table, format_money, page_title
@@ -38,6 +39,9 @@ class TabPackages(QWidget):
         self.btn_search.setObjectName("secondaryButton")
         self.btn_sort = QPushButton("Giá tăng dần")
         self.btn_sort.setObjectName("secondaryButton")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("Tải lại danh sách")
         self.btn_register = QPushButton("Đăng ký gói")
         self.btn_register.setObjectName("primaryButton")
         self.btn_add = QPushButton("Thêm gói")
@@ -136,21 +140,28 @@ class TabPackages(QWidget):
             self.refresh()
 
     def delete_package(self):
+        if not is_admin():
+            QMessageBox.warning(self, "Kh?ng c? quy?n", "Ch? admin ???c x?a g?i t?p")
+            return
         package_id = self.selected_package_id()
         if not package_id:
-            QMessageBox.information(self, "Chú ý", "Chọn gói để xóa")
-            return
-        if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa gói này?") != QMessageBox.StandardButton.Yes:
+            QMessageBox.information(self, "Ch? ?", "Ch?n g?i ?? x?a")
             return
         session = get_session()
         try:
             package = session.query(Package).filter(Package.id == package_id).first()
-            if package:
-                session.delete(package)
-                session.commit()
+            if not package:
+                return
+            if session.query(MemberPackage).filter(MemberPackage.package_id == package.id).first():
+                QMessageBox.warning(self, "Kh?ng th? x?a", "G?i t?p ?? ???c ??ng k?, kh?ng n?n x?a ?? gi? l?ch s? doanh thu")
+                return
+            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a g?i n?y?") != QMessageBox.StandardButton.Yes:
+                return
+            session.delete(package)
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            QMessageBox.critical(self, "L?i", f"X?a th?t b?i: {exc}")
         finally:
             session.close()
         self.refresh()
-
-
-

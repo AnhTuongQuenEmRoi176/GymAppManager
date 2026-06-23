@@ -96,7 +96,13 @@ class PackageRegistrationDialog(QDialog):
         page, layout = self._panel_page("Bước 3: Chọn PT tùy chọn")
         self.trainer_combo = QComboBox()
         self.trainer_combo.addItem("Không chọn PT", None)
-        trainers = self.session.query(Trainer).join(User).order_by(User.full_name).all()
+        trainers = (
+            self.session.query(Trainer)
+            .join(User)
+            .filter(User.is_active == True, Trainer.end_date == None)
+            .order_by(User.full_name)
+            .all()
+        )
         for trainer in trainers:
             self.trainer_combo.addItem(f"{trainer.user.full_name} - {trainer.specialty or 'Chưa cập nhật'}", trainer.id)
         layout.addWidget(self.trainer_combo)
@@ -263,4 +269,3 @@ class PackageRegistrationDialog(QDialog):
     def closeEvent(self, event):
         self.session.close()
         super().closeEvent(event)
-

@@ -17,7 +17,8 @@ from PyQt6.QtWidgets import (
 )
 
 from app.db import get_session
-from app.models import MemberPackage, PTSession, Trainer, User
+from app.models import Checkin, MemberPackage, PTSession, QRDemo, Trainer, User
+from app.state import is_admin
 from app.ui.theme import format_money, page_title
 from app.ui.trainer_form import TrainerForm
 
@@ -37,9 +38,13 @@ class TabTrainers(QWidget):
         toolbar_layout.setContentsMargins(16, 14, 16, 14)
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Tìm PT theo tên hoặc số điện thoại")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("T?i l?i danh s?ch")
         self.btn_add = QPushButton("Thêm PT mới")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search_input, 1)
+        toolbar_layout.addWidget(self.btn_reload)
         toolbar_layout.addWidget(self.btn_add)
         layout.addWidget(toolbar)
 
@@ -54,6 +59,7 @@ class TabTrainers(QWidget):
         layout.addWidget(self.scroll_area, 1)
 
         self.search_input.textChanged.connect(self.refresh)
+        self.btn_reload.clicked.connect(self.refresh)
         self.btn_add.clicked.connect(self.add_trainer)
         self.refresh()
 
@@ -155,13 +161,20 @@ class TabTrainers(QWidget):
         btn_detail.setObjectName("secondaryButton")
         btn_edit = QPushButton("Sửa")
         btn_edit.setObjectName("warningButton")
+        btn_resign = QPushButton("Cho nghỉ")
+        btn_resign.setObjectName("warningButton")
         btn_delete = QPushButton("Xóa")
         btn_delete.setObjectName("dangerButton")
+        if not is_admin():
+            btn_resign.setEnabled(False)
+            btn_delete.setEnabled(False)
         btn_detail.clicked.connect(lambda _, tid=trainer.id: self.open_detail(tid))
         btn_edit.clicked.connect(lambda _, tid=trainer.id: self.edit_trainer(tid))
+        btn_resign.clicked.connect(lambda _, tid=trainer.id: self.resign_trainer(tid))
         btn_delete.clicked.connect(lambda _, tid=trainer.id: self.delete_trainer(tid))
         buttons.addWidget(btn_detail)
         buttons.addWidget(btn_edit)
+        buttons.addWidget(btn_resign)
         buttons.addWidget(btn_delete)
         layout.addLayout(buttons)
 
@@ -177,18 +190,59 @@ class TabTrainers(QWidget):
         if dlg.exec() == dlg.DialogCode.Accepted:
             self.refresh()
 
-    def delete_trainer(self, trainer_id):
-        if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa PT này?") != QMessageBox.StandardButton.Yes:
+    def resign_trainer(self, trainer_id):
+        if not is_admin():
+            QMessageBox.warning(self, "Không có quyền", "Chỉ admin được cho PT thôi việc")
+            return
+        if QMessageBox.question(self, "X?c nh?n", "Cho PT n?y th?i vi?c? PT s? b? kh?a t?i kho?n nh?ng l?ch s? v?n ???c gi?.") != QMessageBox.StandardButton.Yes:
             return
         session = get_session()
         try:
             trainer = session.query(Trainer).filter(Trainer.id == trainer_id).first()
-            if trainer:
-                user = trainer.user
-                session.delete(trainer)
-                if user:
-                    session.delete(user)
-                session.commit()
+            if not trainer:
+                return
+            trainer.end_date = date.today()
+            if trainer.user:
+                trainer.user.is_active = False
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            QMessageBox.critical(self, "Lỗi", f"Cho thôi việc thất bại: {exc}")
+        finally:
+            session.close()
+        self.refresh()
+
+    def delete_trainer(self, trainer_id):
+        if not is_admin():
+            QMessageBox.warning(self, "Không có quyền", "Chỉ admin được xóa PT")
+            return
+        session = get_session()
+        try:
+            trainer = session.query(Trainer).filter(Trainer.id == trainer_id).first()
+            if not trainer:
+                return
+            blockers = []
+            if session.query(MemberPackage).filter(MemberPackage.pt_id == trainer.id).first():
+                blockers.append("đã/đang quản lý gói PT")
+            if session.query(PTSession).filter(PTSession.trainer_id == trainer.id).first():
+                blockers.append("đã có buổi PT")
+            if session.query(Checkin).filter(Checkin.trainer_id == trainer.id).first():
+                blockers.append("đã có lịch sử check-in")
+            if session.query(QRDemo).filter(QRDemo.entity_type == "trainer", QRDemo.entity_id == trainer.id).first():
+                blockers.append("đã có mã QR demo")
+            if blockers:
+                QMessageBox.warning(self, "Không thể xóa", "PT còn ràng buộc: " + ", ".join(blockers) + ". Hãy dùng Cho nghỉ để khóa tài khoản.")
+                return
+            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a PT n?y?") != QMessageBox.StandardButton.Yes:
+                return
+            user = trainer.user
+            session.delete(trainer)
+            if user:
+                session.delete(user)
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            QMessageBox.critical(self, "Lỗi", f"Xóa thất bại: {exc}")
         finally:
             session.close()
         self.refresh()
@@ -198,7 +252,3 @@ class TabTrainers(QWidget):
 
         dlg = TrainerDetailDialog(trainer_id)
         dlg.exec()
-
-
-
-

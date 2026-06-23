@@ -178,3 +178,54 @@
 ### Còn nên làm nếu muốn quản lý người thêm thật sự
 - Cần migration DB thêm cột `created_by` cho `users` hoặc riêng `members/trainers/packages`.
 - Sau đó cập nhật model SQLAlchemy và form tạo mới để lưu `get_current_user().id`.
+
+## 2026-06-23 - Tối ưu nhẹ app, validate đăng ký, QR clear, reload/date picker
+
+### Đã làm
+- `requirements.txt`
+  - Gỡ phụ thuộc trực tiếp nặng/không còn cần: `matplotlib`, `Pillow`, `opencv-python`.
+  - Đổi sang `opencv-python-headless` để nhẹ hơn khi chạy app PyQt, giữ `qrcode[pil]` để QR vẫn có backend ảnh.
+  - Giữ `pandas/openpyxl` vì chức năng xuất Excel của báo cáo vẫn dùng khi người dùng bấm xuất file.
+
+- `app/ui/tab_reports.py`
+  - Bỏ toàn bộ render chart bằng `matplotlib`; chuyển biểu đồ sang `pyqtgraph` để giảm tải import và dung lượng đóng gói.
+  - Bộ lọc ngày dùng format `dd/MM/yyyy`, có nút nhanh `Hôm nay`, `30 ngày`, và nút reload `↻`.
+  - Import app chính không còn kéo `matplotlib`, `pandas`, `cv2` vào ngay từ đầu.
+
+- `app/ui/login.py`
+  - Đổi brand/login window sang `Apex Gym`.
+  - Form đăng ký lễ tân validate SĐT, bắt buộc họ tên/tên đăng nhập, mật khẩu tối thiểu 8 ký tự.
+  - Thêm ô nhập lại mật khẩu và kiểm tra khớp mật khẩu.
+  - Kiểm tra trùng SĐT khi đăng ký.
+
+- `app/main.py`, `app/ui/theme.py`
+  - Đổi tên app/window title thành `Apex Gym - Quản lý phòng gym`.
+  - Sidebar brand thành `Apex Gym`.
+  - Thêm top bar nội bộ cho app chính và style cho nút icon reload.
+  - Lưu ý: title bar gốc của Windows chưa custom frameless để tránh tăng rủi ro lỗi resize/drag window.
+
+- `app/ui/member_form.py`, `app/ui/trainer_form.py`
+  - Ngày sinh hội viên và ngày vào của PT chuyển sang `QDateEdit` có calendar popup, format `dd/MM/yyyy`.
+
+- `app/ui/tab_dashboard.py`
+  - Form check-in có thêm nút `Từ chối` khi QR đã được nhận diện.
+  - Nếu lễ tân không xác nhận/từ chối trong 5 giây thì tự clear thông tin QR.
+  - Sau khi xác nhận/auto check-in, panel giữ trạng thái ngắn rồi clear sau 5 giây, tránh quét lặp gây lag.
+
+- Các tab chính
+  - Thêm nút reload `↻` cho: Lịch sử check-in, Hội viên, PT, Gói tập, Lễ tân, QR demo, Báo cáo.
+  - Lịch sử check-in có quick filter `Hôm nay` và `7 ngày`, date picker format `dd/MM/yyyy`.
+
+### Kiểm tra đã chạy
+- Syntax toàn bộ `app/ui/*.py`, `app/main.py`, `app/utils/camera_worker.py` OK bằng `python -B` + `compile()`.
+- Import `app.main` OK.
+- Sau import app chính: `cv2=False`, `pandas=False`, `matplotlib=False`.
+
+### Lưu ý cho lần sau
+- Nếu camera gặp lỗi với `opencv-python-headless` trên máy Windows cụ thể, cân nhắc đổi lại `opencv-python`. Hiện code vẫn lazy import `cv2`, nên chỉ ảnh hưởng lúc bật camera.
+- Muốn custom title bar Windows thật sự đẹp hơn nữa thì nên làm frameless window riêng, nhưng cần xử lý kéo cửa sổ, resize, minimize/maximize/close cẩn thận.
+
+### Hotfix 2026-06-23 - Sửa crash reload/quick filter
+- Sửa `app/ui/tab_history.py`: khởi tạo đúng `btn_today`, `btn_7days`, `btn_reload` trước khi add vào layout; sửa label bị lỗi encoding; làm `__del__` an toàn khi Qt đã hủy `QTimer`.
+- Sửa `app/ui/tab_members.py`, `app/ui/tab_trainers.py`, `app/ui/tab_qrdemo.py`, `app/ui/tab_receptionists.py`: đảm bảo `btn_reload` được tạo trước khi dùng và đã connect về hàm refresh/reload tương ứng.
+- Đã test runtime bằng `QT_QPA_PLATFORM=offscreen`: `TabHistory`, `TabMembers`, `TabTrainers`, `TabQRDemo`, `TabReceptionists` khởi tạo OK.

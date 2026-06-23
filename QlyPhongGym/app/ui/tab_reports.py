@@ -51,21 +51,33 @@ class TabReports(QWidget):
         filters_layout.addWidget(QLabel("Từ"))
         self.date_from = QDateEdit()
         self.date_from.setCalendarPopup(True)
+        self.date_from.setDisplayFormat("dd/MM/yyyy")
         self.date_from.setDate(QDate.currentDate().addDays(-30))
         filters_layout.addWidget(self.date_from)
         filters_layout.addWidget(QLabel("Đến"))
         self.date_to = QDateEdit()
         self.date_to.setCalendarPopup(True)
+        self.date_to.setDisplayFormat("dd/MM/yyyy")
         self.date_to.setDate(QDate.currentDate())
         filters_layout.addWidget(self.date_to)
         self.type_filter = QComboBox()
         self.type_filter.addItems(["Tất cả", "payment", "salary", "refund", "other"])
         filters_layout.addWidget(QLabel("Loại"))
         filters_layout.addWidget(self.type_filter)
+        self.btn_today = QPushButton("Hôm nay")
+        self.btn_today.setObjectName("ghostButton")
+        self.btn_30days = QPushButton("30 ngày")
+        self.btn_30days.setObjectName("ghostButton")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("Tải lại báo cáo")
         self.btn_view = QPushButton("Xem báo cáo")
         self.btn_view.setObjectName("primaryButton")
         self.btn_export = QPushButton("Xuất Excel")
         self.btn_export.setObjectName("secondaryButton")
+        filters_layout.addWidget(self.btn_today)
+        filters_layout.addWidget(self.btn_30days)
+        filters_layout.addWidget(self.btn_reload)
         filters_layout.addWidget(self.btn_view)
         filters_layout.addWidget(self.btn_export)
         filters_layout.addStretch()
@@ -105,6 +117,9 @@ class TabReports(QWidget):
         lower_tables.addWidget(self.package_summary_table)
         layout.addLayout(lower_tables, 1)
 
+        self.btn_today.clicked.connect(self.set_today)
+        self.btn_30days.clicked.connect(self.set_last_30_days)
+        self.btn_reload.clicked.connect(self.view_report)
         self.btn_view.clicked.connect(self.view_report)
         self.btn_export.clicked.connect(self.export_excel)
 
@@ -127,6 +142,18 @@ class TabReports(QWidget):
         frame_layout.addWidget(value_label)
         frame_layout.addWidget(caption_label)
         return {"frame": frame, "value": value_label}
+
+    def set_today(self):
+        today = QDate.currentDate()
+        self.date_from.setDate(today)
+        self.date_to.setDate(today)
+        self.view_report()
+
+    def set_last_30_days(self):
+        today = QDate.currentDate()
+        self.date_from.setDate(today.addDays(-30))
+        self.date_to.setDate(today)
+        self.view_report()
 
     def _date_range(self):
         dfrom = self.date_from.date().toPyDate()
@@ -219,48 +246,40 @@ class TabReports(QWidget):
         self._render_summary_tables(trainer_counts, trainer_names, trainer_revenue, package_totals, package_counts)
 
     def _render_charts(self, type_sums, trainer_counts, trainer_names, trainer_revenue):
-        import matplotlib.pyplot as plt
         import pyqtgraph as pg
-        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
         from pyqtgraph import PlotWidget
 
         self._clear_charts()
 
-        fig1, ax1 = plt.subplots(figsize=(4, 3), facecolor="#101f31")
-        ax1.set_facecolor("#101f31")
-        if type_sums:
-            labels = list(type_sums.keys())
-            sizes = [type_sums[key] for key in labels]
-            ax1.pie(sizes, labels=labels, autopct="%1.1f%%", textprops={"color": "#e8f2ff"})
-        ax1.set_title("Loại giao dịch", color="#e8f2ff")
-        canvas1 = FigureCanvas(fig1)
-        self.charts_layout.addWidget(canvas1)
+        def make_bar_chart(title, labels, values, color="#ccff00"):
+            chart = PlotWidget()
+            chart.setBackground("#101f31")
+            chart.setMinimumHeight(300)
+            chart.showGrid(x=False, y=True, alpha=0.18)
+            chart.setTitle(title, color="#e8f2ff", size="12pt")
+            chart.getAxis("left").setPen(pg.mkPen("#6f849b"))
+            chart.getAxis("bottom").setPen(pg.mkPen("#6f849b"))
+            if values:
+                x_values = list(range(len(values)))
+                chart.addItem(pg.BarGraphItem(x=x_values, height=values, width=0.55, brush=color))
+                chart.getAxis("bottom").setTicks([list(zip(x_values, labels))])
+            else:
+                chart.addItem(pg.TextItem("Chưa có dữ liệu", color="#94a3b8", anchor=(0.5, 0.5)))
+            return chart
 
-        fig2, ax2 = plt.subplots(figsize=(4, 3), facecolor="#101f31")
-        ax2.set_facecolor("#101f31")
-        if trainer_counts:
-            names = [trainer_names.get(tid, str(tid)) for tid in trainer_counts.keys()]
-            counts = [trainer_counts[tid] for tid in trainer_counts.keys()]
-            ax2.bar(names, counts, color="#ccff00")
-            ax2.tick_params(axis="x", colors="#e8f2ff", rotation=35)
-            ax2.tick_params(axis="y", colors="#e8f2ff")
-        ax2.set_title("Buổi PT", color="#e8f2ff")
-        canvas2 = FigureCanvas(fig2)
-        self.charts_layout.addWidget(canvas2)
+        tx_labels = list(type_sums.keys())
+        tx_values = [type_sums[key] for key in tx_labels]
+        self.charts_layout.addWidget(make_bar_chart("Loại giao dịch", tx_labels, tx_values, "#21d4fd"))
 
-        if trainer_revenue:
-            pg_widget = PlotWidget()
-            pg_widget.setBackground("#101f31")
-            trainer_ids = list(trainer_revenue.keys())
-            values = [trainer_revenue[tid] for tid in trainer_ids]
-            names = [trainer_names.get(tid, str(tid)) for tid in trainer_ids]
-            x_values = list(range(len(values)))
-            bar = pg.BarGraphItem(x=x_values, height=values, width=0.55, brush="#ccff00")
-            pg_widget.addItem(bar)
-            pg_widget.getAxis("bottom").setTicks([list(zip(x_values, names))])
-            pg_widget.setTitle("Doanh thu PT")
-            self.charts_layout.addWidget(pg_widget)
+        trainer_ids = list(trainer_counts.keys())
+        count_labels = [trainer_names.get(tid, str(tid)) for tid in trainer_ids]
+        count_values = [trainer_counts[tid] for tid in trainer_ids]
+        self.charts_layout.addWidget(make_bar_chart("Buổi PT", count_labels, count_values, "#ccff00"))
 
+        revenue_ids = list(trainer_revenue.keys())
+        revenue_labels = [trainer_names.get(tid, str(tid)) for tid in revenue_ids]
+        revenue_values = [trainer_revenue[tid] for tid in revenue_ids]
+        self.charts_layout.addWidget(make_bar_chart("Doanh thu PT", revenue_labels, revenue_values, "#ffb020"))
     def _render_transaction_table(self, rows, total_revenue, total_salary, profit):
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Ngày", "Loại", "Số tiền", "Mô tả"])
@@ -330,7 +349,3 @@ class TabReports(QWidget):
             if self.package_summary:
                 pd.DataFrame(self.package_summary).to_excel(writer, sheet_name="Package Summary", index=False)
         QMessageBox.information(self, "Hoàn tất", f"Đã lưu báo cáo vào: {path}")
-
-
-
-

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QTableWidget, 
 
 from app.db import get_session
 from app.models import Member, MemberPackage, PTSession, Trainer, User
+from app.payroll import PT_SESSION_RATE, calculate_trainer_salary
 from app.ui.theme import configure_table, format_money, page_title
 
 

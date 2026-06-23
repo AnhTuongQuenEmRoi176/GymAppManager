@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.db import get_session
-from app.models import Member, QRDemo, Trainer
+from app.models import Member, QRDemo, Trainer, User
 from app.ui.theme import configure_table, page_title
 
 
@@ -48,10 +48,14 @@ class TabQRDemo(QWidget):
         self.btn_create.setObjectName("primaryButton")
         self.btn_export = QPushButton("Xuất mã QR")
         self.btn_export.setObjectName("secondaryButton")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("T?i l?i QR")
         controls.addWidget(self.type_combo)
         controls.addWidget(self.entity_combo, 1)
         controls.addWidget(self.btn_create)
         controls.addWidget(self.btn_export)
+        controls.addWidget(self.btn_reload)
         layout.addWidget(controls_panel)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -79,8 +83,13 @@ class TabQRDemo(QWidget):
         self.type_combo.currentIndexChanged.connect(self.load_entities)
         self.btn_create.clicked.connect(self.create_qr)
         self.btn_export.clicked.connect(self.export_selected)
+        self.btn_reload.clicked.connect(self.reload_all)
         self.table.itemSelectionChanged.connect(self.on_table_select)
 
+        self.load_entities()
+        self.load_qrdemos()
+
+    def reload_all(self):
         self.load_entities()
         self.load_qrdemos()
 
@@ -102,7 +111,7 @@ class TabQRDemo(QWidget):
             for member in session.query(Member).all():
                 self.entity_combo.addItem(f"{member.user.full_name} ({member.user.username})", member.id)
         else:
-            for trainer in session.query(Trainer).all():
+            for trainer in session.query(Trainer).join(User).filter(User.is_active == True, Trainer.end_date == None).all():
                 self.entity_combo.addItem(f"{trainer.user.full_name} ({trainer.user.username})", trainer.id)
 
     def load_qrdemos(self):
@@ -215,5 +224,3 @@ class TabQRDemo(QWidget):
                 QMessageBox.information(self, "Hoàn tất", f"Đã xuất sang {dest}")
             except Exception as exc:
                 QMessageBox.critical(self, "Lỗi", f"Xuất thất bại: {exc}")
-
-

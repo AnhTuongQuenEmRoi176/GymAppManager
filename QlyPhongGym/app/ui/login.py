@@ -18,12 +18,13 @@ from app.db import get_session
 from app.models import Role, User
 from app.state import set_current_user
 from app.ui.theme import page_title
+from app.ui.validators import normalize_phone, validate_phone, validate_required
 
 
 class LoginDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Đăng nhập - Quản lý Phòng Gym")
+        self.setWindowTitle("Apex Gym - Đăng nhập")
         self.setModal(True)
         self.resize(460, 360)
 
@@ -31,7 +32,7 @@ class LoginDialog(QDialog):
         root.setContentsMargins(28, 28, 28, 28)
         root.setSpacing(16)
 
-        root.addWidget(page_title("Gym Master", "Đăng nhập để bắt đầu ca làm việc"))
+        root.addWidget(page_title("Apex Gym", "Đăng nhập để bắt đầu ca làm việc"))
 
         panel = QFrame()
         panel.setObjectName("panel")
@@ -130,8 +131,8 @@ class LoginDialog(QDialog):
 class RegisterDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Đăng ký tài khoản lễ tân")
-        self.resize(460, 360)
+        self.setWindowTitle("Apex Gym - Đăng ký lễ tân")
+        self.resize(480, 420)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -148,12 +149,16 @@ class RegisterDialog(QDialog):
         self.username = QLineEdit()
         self.password = QLineEdit()
         self.password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.confirm_password = QLineEdit()
+        self.confirm_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.full_name = QLineEdit()
         self.phone = QLineEdit()
-        form.addRow("Tên đăng nhập", self.username)
-        form.addRow("Mật khẩu", self.password)
-        form.addRow("Họ và tên", self.full_name)
-        form.addRow("Số điện thoại", self.phone)
+        self.phone.setPlaceholderText("VD: 0912345678")
+        form.addRow("Tên đăng nhập *", self.username)
+        form.addRow("Mật khẩu *", self.password)
+        form.addRow("Nhập lại mật khẩu *", self.confirm_password)
+        form.addRow("Họ và tên *", self.full_name)
+        form.addRow("Số điện thoại *", self.phone)
         panel_layout.addLayout(form)
 
         btn_layout = QHBoxLayout()
@@ -173,17 +178,32 @@ class RegisterDialog(QDialog):
     def save(self):
         username = self.username.text().strip()
         password = self.password.text().strip()
+        confirm_password = self.confirm_password.text().strip()
         full_name = self.full_name.text().strip()
-        phone = self.phone.text().strip()
+        phone = normalize_phone(self.phone.text())
 
-        if not username or not password or not full_name:
-            QMessageBox.warning(self, "Lỗi", "Vui lòng điền đầy đủ tên đăng nhập, mật khẩu và họ tên")
+        for error in (
+            validate_required(username, "Tên đăng nhập"),
+            validate_required(full_name, "Họ và tên"),
+            validate_phone(phone),
+        ):
+            if error:
+                QMessageBox.warning(self, "Lỗi nhập liệu", error)
+                return
+        if len(password) < 8:
+            QMessageBox.warning(self, "Lỗi nhập liệu", "Mật khẩu phải có ít nhất 8 ký tự")
+            return
+        if password != confirm_password:
+            QMessageBox.warning(self, "Lỗi nhập liệu", "Mật khẩu nhập lại không khớp")
             return
 
         session = get_session()
         try:
             if session.query(User).filter(User.username == username).first():
                 QMessageBox.warning(self, "Lỗi", "Tên đăng nhập đã tồn tại")
+                return
+            if session.query(User).filter(User.phone == phone).first():
+                QMessageBox.warning(self, "Lỗi", "Số điện thoại đã tồn tại")
                 return
             role = session.query(Role).filter(Role.name == "receptionist").first()
             if not role:
@@ -205,5 +225,3 @@ class RegisterDialog(QDialog):
             QMessageBox.critical(self, "Lỗi", f"Lỗi khi đăng ký: {exc}")
         finally:
             session.close()
-
-

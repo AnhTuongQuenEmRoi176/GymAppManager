@@ -190,6 +190,33 @@ QGroupBox::title {{
     background: transparent;
 }}
 
+QFrame#topBar {{
+    background: {c['surface_card']};
+    border: 1px solid {c['border']};
+    border-radius: 8px;
+}}
+
+QLabel#topBarTitle {{
+    color: {c['text']};
+    font-size: 18px;
+    font-weight: 900;
+}}
+
+QLabel#topBarSubtitle {{
+    color: {c['muted']};
+    font-size: 12px;
+    font-weight: 650;
+}}
+
+QPushButton#iconButton {{
+    min-width: 34px;
+    max-width: 34px;
+    padding: 7px 0;
+    background: {c['surface_high']};
+    color: {c['primary']};
+    border-color: {c['border']};
+    font-size: 15px;
+}}
 QPushButton {{
     background: {c['surface_high']};
     color: {c['text']};

@@ -3,7 +3,7 @@ import time
 import uuid
 from datetime import date, datetime
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -35,6 +35,7 @@ class TabDashboard(QWidget):
         self.confirming = False
         self.auto_pause_until = 0
         self.last_auto_confirm = {}
+        self.scan_clear_deadline = 0
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -107,12 +108,17 @@ class TabDashboard(QWidget):
         self.btn_confirm.setObjectName("primaryButton")
         self.btn_confirm.setVisible(False)
         info_layout.addWidget(self.btn_confirm)
+        self.btn_reject = QPushButton("Từ chối")
+        self.btn_reject.setObjectName("dangerButton")
+        self.btn_reject.setVisible(False)
+        info_layout.addWidget(self.btn_reject)
         info_layout.addStretch()
         content.addWidget(info_panel, 1)
 
         layout.addLayout(content, 1)
 
         self.btn_confirm.clicked.connect(lambda: self.handle_confirm(show_message=True))
+        self.btn_reject.clicked.connect(self.clear_scan_state)
         self.btn_on.clicked.connect(self.start_camera)
         self.btn_off.clicked.connect(self.stop_camera)
 
@@ -263,6 +269,8 @@ class TabDashboard(QWidget):
                 else:
                     self.btn_confirm.setText("Xác nhận check-in")
                 self.btn_confirm.setVisible(True)
+                self.btn_reject.setVisible(True)
+                self.schedule_scan_clear()
 
                 if self.mode_combo.currentText() == "Tự động" and not (entities["member"] and entities["trainer"]):
                     self.handle_confirm(show_message=False, automatic=True)
@@ -347,6 +355,8 @@ class TabDashboard(QWidget):
                 self.info.setText("Check-in đã được lưu thành công.")
                 self.status_label.setText("Đã xác nhận")
             self.btn_confirm.setVisible(False)
+            self.btn_reject.setVisible(False)
+            QTimer.singleShot(5000, self.clear_scan_state)
 
             if not automatic:
                 for payload in self.pending_payloads:
@@ -369,3 +379,22 @@ class TabDashboard(QWidget):
             session.close()
             self.confirming = False
 
+    def schedule_scan_clear(self):
+        self.scan_clear_deadline = time.monotonic() + 5
+        QTimer.singleShot(5000, self.clear_scan_if_pending)
+
+    def clear_scan_if_pending(self):
+        if self.pending_entities and not self.confirming and time.monotonic() >= self.scan_clear_deadline:
+            self.clear_scan_state()
+
+    def clear_scan_state(self):
+        self.pending_entities = None
+        self.pending_photo = None
+        self.pending_payloads = []
+        self.btn_confirm.setVisible(False)
+        self.btn_reject.setVisible(False)
+        self.avatar_label.setPixmap(QPixmap())
+        self.avatar_label.setText("Ảnh")
+        self.info.setText("Đưa mã QR vào camera để hiển thị thông tin hội viên hoặc PT.")
+        self.status_label.setText("Sẵn sàng quét")
+        self.auto_pause_until = time.monotonic() + 1

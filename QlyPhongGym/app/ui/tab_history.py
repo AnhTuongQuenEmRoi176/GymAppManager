@@ -33,15 +33,27 @@ class TabHistory(QWidget):
         filter_layout.addWidget(QLabel("Từ ngày"))
         self.date_from = QDateEdit()
         self.date_from.setCalendarPopup(True)
+        self.date_from.setDisplayFormat("dd/MM/yyyy")
         self.date_from.setDate(QDate.currentDate())
         filter_layout.addWidget(self.date_from)
         filter_layout.addWidget(QLabel("Đến ngày"))
         self.date_to = QDateEdit()
         self.date_to.setCalendarPopup(True)
+        self.date_to.setDisplayFormat("dd/MM/yyyy")
         self.date_to.setDate(QDate.currentDate())
         filter_layout.addWidget(self.date_to)
+        self.btn_today = QPushButton("Hôm nay")
+        self.btn_today.setObjectName("ghostButton")
+        self.btn_7days = QPushButton("7 ngày")
+        self.btn_7days.setObjectName("ghostButton")
+        self.btn_reload = QPushButton("↻")
+        self.btn_reload.setObjectName("iconButton")
+        self.btn_reload.setToolTip("T?i l?i l?ch s?")
         self.btn_filter = QPushButton("Lọc")
         self.btn_filter.setObjectName("primaryButton")
+        filter_layout.addWidget(self.btn_today)
+        filter_layout.addWidget(self.btn_7days)
+        filter_layout.addWidget(self.btn_reload)
         filter_layout.addWidget(self.btn_filter)
         filter_layout.addStretch()
         layout.addWidget(filter_panel)
@@ -52,6 +64,9 @@ class TabHistory(QWidget):
         configure_table(self.table)
         layout.addWidget(self.table, 1)
 
+        self.btn_today.clicked.connect(self.set_today)
+        self.btn_7days.clicked.connect(self.set_last_7_days)
+        self.btn_reload.clicked.connect(self.load_checkins)
         self.btn_filter.clicked.connect(self.load_checkins)
         self.table.itemDoubleClicked.connect(self.open_detail)
 
@@ -61,8 +76,23 @@ class TabHistory(QWidget):
         self.load_checkins()
 
     def __del__(self):
-        if hasattr(self, "refresh_timer"):
-            self.refresh_timer.stop()
+        try:
+            if hasattr(self, "refresh_timer"):
+                self.refresh_timer.stop()
+        except RuntimeError:
+            pass
+
+    def set_today(self):
+        today = QDate.currentDate()
+        self.date_from.setDate(today)
+        self.date_to.setDate(today)
+        self.load_checkins()
+
+    def set_last_7_days(self):
+        today = QDate.currentDate()
+        self.date_from.setDate(today.addDays(-6))
+        self.date_to.setDate(today)
+        self.load_checkins()
 
     def load_checkins(self):
         dfrom = self.date_from.date().toPyDate()
