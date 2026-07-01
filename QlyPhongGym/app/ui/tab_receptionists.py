@@ -178,7 +178,7 @@ class TabReceptionists(QWidget):
             session.commit()
         except Exception as exc:
             session.rollback()
-            QMessageBox.critical(self, "Lỗi", f"Xóa th?t b?i: {exc}")
+            QMessageBox.critical(self, "Lỗi", f"Xóa thất bại: {exc}")
         finally:
             session.close()
         self.refresh()

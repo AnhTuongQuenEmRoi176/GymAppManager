@@ -18,7 +18,8 @@ from PyQt6.QtWidgets import (
 )
 
 from app.db import get_session
-from app.models import MemberPackage, PTSession, Package, Trainer, Transaction
+from app.models import MemberPackage, PTSession, Package, Role, Trainer, Transaction, User
+from app.payroll import DEFAULT_RECEPTIONIST_SALARY, PT_SESSION_RATE, calculate_trainer_salary
 from app.state import is_admin
 from app.ui.theme import configure_table, format_money, page_title
 
@@ -230,19 +231,29 @@ class TabReports(QWidget):
             package_totals = {}
             package_counts = {}
             for member_package in member_packages:
-                package_name = member_package.package.name if member_package.package else f"Gói {member_package.package_id}"
+                package_name = member_package.package.name if member_package.package else f"G?i {member_package.package_id}"
                 package_totals[package_name] = package_totals.get(package_name, 0) + float(member_package.price_paid or 0)
                 package_counts[package_name] = package_counts.get(package_name, 0) + 1
+
+            payroll_estimate = 0
+            for trainer in session.query(Trainer).all():
+                count = trainer_counts.get(trainer.id, 0)
+                payroll_estimate += calculate_trainer_salary(trainer.base_salary, count, PT_SESSION_RATE)
+            role = session.query(Role).filter(Role.name == "receptionist").first()
+            if role:
+                receptionist_count = session.query(User).filter(User.role_id == role.id, User.is_active == True).count()
+                payroll_estimate += receptionist_count * DEFAULT_RECEPTIONIST_SALARY
         finally:
             session.close()
 
-        profit = total_revenue - total_salary
+        payroll_expense = max(total_salary, payroll_estimate)
+        profit = total_revenue - payroll_expense
         self.label_revenue["value"].setText(format_money(total_revenue))
-        self.label_salary["value"].setText(format_money(total_salary))
+        self.label_salary["value"].setText(format_money(payroll_expense))
         self.label_profit["value"].setText(format_money(profit))
 
         self._render_charts(type_sums, trainer_counts, trainer_names, trainer_revenue)
-        self._render_transaction_table(rows, total_revenue, total_salary, profit)
+        self._render_transaction_table(rows, total_revenue, total_salary, payroll_estimate, payroll_expense, profit)
         self._render_summary_tables(trainer_counts, trainer_names, trainer_revenue, package_totals, package_counts)
 
     def _render_charts(self, type_sums, trainer_counts, trainer_names, trainer_revenue):
@@ -280,10 +291,10 @@ class TabReports(QWidget):
         revenue_labels = [trainer_names.get(tid, str(tid)) for tid in revenue_ids]
         revenue_values = [trainer_revenue[tid] for tid in revenue_ids]
         self.charts_layout.addWidget(make_bar_chart("Doanh thu PT", revenue_labels, revenue_values, "#ffb020"))
-    def _render_transaction_table(self, rows, total_revenue, total_salary, profit):
+    def _render_transaction_table(self, rows, total_revenue, total_salary, payroll_estimate, payroll_expense, profit):
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Ngày", "Loại", "Số tiền", "Mô tả"])
-        self.table.setRowCount(len(rows) + 3)
+        self.table.setRowCount(len(rows) + 5)
         for row, item in enumerate(rows):
             values = [item["date"], item["type"], format_money(item["amount"]), item["description"] or ""]
             for col, value in enumerate(values):

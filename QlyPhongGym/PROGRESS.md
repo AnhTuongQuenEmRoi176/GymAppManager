@@ -229,3 +229,40 @@
 - Sửa `app/ui/tab_history.py`: khởi tạo đúng `btn_today`, `btn_7days`, `btn_reload` trước khi add vào layout; sửa label bị lỗi encoding; làm `__del__` an toàn khi Qt đã hủy `QTimer`.
 - Sửa `app/ui/tab_members.py`, `app/ui/tab_trainers.py`, `app/ui/tab_qrdemo.py`, `app/ui/tab_receptionists.py`: đảm bảo `btn_reload` được tạo trước khi dùng và đã connect về hàm refresh/reload tương ứng.
 - Đã test runtime bằng `QT_QPA_PLATFORM=offscreen`: `TabHistory`, `TabMembers`, `TabTrainers`, `TabQRDemo`, `TabReceptionists` khởi tạo OK.
+
+### 2026-06-23 - Admin delete guard, thôi việc, tổng hợp lương PT
+- Thêm `app/payroll.py` với công thức dùng chung: `lương = lương cứng + số buổi PT * hệ số/buổi`; hệ số mặc định hiện là `50000`.
+- Thêm tab admin `Lương` (`app/ui/tab_payroll.py`): lọc kỳ lương, chỉnh hệ số/buổi, xem tổng lương PT và ghi nhận thanh toán lương bằng `transactions.type = salary`.
+- `app/main.py`: thêm tab `Lương`, chỉ admin được truy cập.
+- `app/ui/trainer_detail.py`: hiển thị thêm hệ số/buổi và thu nhập tạm tính cho PT.
+- `app/ui/tab_trainers.py`: thêm nút `Cho nghỉ` cho PT; chỉ admin được cho nghỉ/xóa. Cho nghỉ sẽ set `trainers.end_date = today` và `users.is_active = False` để giữ lịch sử.
+- `app/ui/tab_receptionists.py`: thêm trạng thái, nút `Cho nghỉ`; chỉ admin được cho nghỉ/xóa. Cho nghỉ sẽ set `users.is_active = False`.
+- `app/ui/login.py`: chặn đăng nhập với tài khoản `is_active = False`.
+- Logic xóa đã đổi sang admin-only và chặn xóa khi còn ràng buộc:
+  - Hội viên: chặn nếu có gói tập, check-in, buổi PT, QR demo.
+  - PT: chặn nếu còn/đã quản lý gói PT, có buổi PT, check-in, QR demo.
+  - Gói tập: chặn nếu đã từng được đăng ký.
+  - Lễ tân: chặn nếu đã quét check-in, xác nhận buổi PT hoặc tạo giao dịch.
+- Lọc PT đã nghỉ khỏi màn đăng ký gói và QR demo để tránh giao việc mới cho người đã thôi việc.
+
+### Kiểm tra đã chạy
+- Compile toàn bộ `app/**/*.py` OK.
+- Runtime offscreen OK cho `TabTrainers`, `TabMembers`, `TabPackages`, `TabReceptionists`, `TabPayroll`.
+- Rà các label mới trong `tab_trainers.py`, `tab_history.py`, `tab_receptionists.py`, `tab_payroll.py`: không còn ký tự `?` nghi do lỗi Unicode.
+
+### 2026-06-23 - Mở rộng lương PT/nhân viên và nối lãi lỗ
+- `app/ui/trainer_detail.py`: chi tiết PT hiển thị thu nhập tháng hiện tại gồm: số buổi tháng này, hệ số/buổi, tiền theo buổi, lương cứng, tổng thu nhập tháng; bảng bên dưới chỉ liệt kê các buổi PT trong tháng hiện tại và tiền/buổi.
+- `app/ui/tab_payroll.py`: viết lại tab Lương cho tất cả nhân viên:
+  - Gồm PT và lễ tân.
+  - Lọc theo ngày/tháng, nút `Tháng này`, tìm kiếm theo tên/SĐT/vai trò.
+  - Sort theo tên, tổng lương cao, còn phải trả cao, số buổi PT cao, vai trò.
+  - Có hệ số/buổi PT và lương lễ tân/kỳ để admin chỉnh khi tính.
+  - Tính tổng lương, đã thanh toán, còn phải trả.
+  - Thanh toán lương ghi `transactions.type = salary` kèm token `payroll:{type}:{id}` để lần sau nhận biết đã trả.
+  - Xuất Excel bảng lương hiện tại.
+- `app/payroll.py`: thêm `DEFAULT_RECEPTIONIST_SALARY` và `salary_token()`.
+- `app/ui/tab_reports.py`: lãi/lỗ nay trừ chi phí lương theo kỳ. Chi phí lương = max(lương đã thanh toán, lương dự kiến theo buổi PT + lương lễ tân mặc định). Đổi thẻ báo cáo thành `Chi phí lương` và thêm các dòng tóm tắt lương đã thanh toán/lương dự kiến/chi phí lương tính lãi lỗ.
+
+### Kiểm tra đã chạy
+- Compile toàn bộ `app/**/*.py` OK.
+- Runtime offscreen OK cho `TabPayroll`, `TabReports`.
