@@ -19,8 +19,7 @@ SECRET_KEY=your-secret
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+z```
 
 4. Chạy migration SQL `migrations/schema.sql` trên MySQL để tạo bảng mẫu.
 5. Chạy ứng dụng:
