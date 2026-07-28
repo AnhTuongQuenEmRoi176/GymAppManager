@@ -35,6 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
+<<<<<<< Updated upstream
 # on Windows, a path can contain colons and backslashes and has to be converted:
 if [ "${OSTYPE:-}" = "cygwin" ] || [ "${OSTYPE:-}" = "msys" ] ; then
     # transform D:\path\to\venv to /d/path/to/venv on MSYS
@@ -44,6 +45,10 @@ else
     # use the path as-is
     export VIRTUAL_ENV="C:\Users\hakho\Downloads\Github\GymAppManager\QlyPhongGym\.venv"
 fi
+=======
+VIRTUAL_ENV="C:\Users\Sol\Documents\GitHub\GymAppManager\QlyPhongGym\.venv"
+export VIRTUAL_ENV
+>>>>>>> Stashed changes
 
 _OLD_VIRTUAL_PATH="$PATH"
 PATH="$VIRTUAL_ENV/Scripts:$PATH"

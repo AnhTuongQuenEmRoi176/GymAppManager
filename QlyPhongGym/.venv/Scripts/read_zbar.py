@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 #!C:\Users\hakho\Downloads\Github\GymAppManager\QlyPhongGym\.venv\Scripts\python.exe
+=======
+#!C:\Users\Sol\Documents\GitHub\GymAppManager\QlyPhongGym\.venv\Scripts\python.exe
+>>>>>>> Stashed changes
 from __future__ import print_function
 
 import argparse

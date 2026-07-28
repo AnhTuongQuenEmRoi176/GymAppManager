@@ -8,7 +8,11 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
+<<<<<<< Updated upstream
 set VIRTUAL_ENV=C:\Users\hakho\Downloads\Github\GymAppManager\QlyPhongGym\.venv
+=======
+set VIRTUAL_ENV=C:\Users\Sol\Documents\GitHub\GymAppManager\QlyPhongGym\.venv
+>>>>>>> Stashed changes
 
 if not defined PROMPT set PROMPT=$P$G
 
