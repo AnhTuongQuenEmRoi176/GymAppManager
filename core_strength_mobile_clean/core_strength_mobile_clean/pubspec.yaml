@@ -1,0 +1,27 @@
+name: core_strength_mobile
+description: Ứng dụng Flutter cho hội viên và PT của hệ thống CORE STRENGTH.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+  flutter: '>=3.38.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  dio: ^5.11.0
+  flutter_secure_storage: ^9.2.4
+  web_socket_channel: ^3.0.2
+  qr_flutter: ^4.1.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

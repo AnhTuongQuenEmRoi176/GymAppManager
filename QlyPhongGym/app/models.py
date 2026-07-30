@@ -112,6 +112,29 @@ class PTSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+
+class TrainingSchedule(Base):
+    __tablename__ = 'training_schedules'
+    id = Column(Integer, primary_key=True)
+    trainer_id = Column(Integer, ForeignKey('trainers.id'), nullable=False)
+    member_id = Column(Integer, ForeignKey('members.id'), nullable=False)
+    member_package_id = Column(Integer, ForeignKey('member_packages.id'), nullable=True)
+    title = Column(String(200), nullable=False)
+    start_at = Column(DateTime, nullable=False)
+    end_at = Column(DateTime, nullable=False)
+    location = Column(String(200), nullable=True)
+    note = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default='upcoming')
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    cancelled_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    trainer = relationship('Trainer')
+    member = relationship('Member')
+    member_package = relationship('MemberPackage')
+
 class Transaction(Base):
     __tablename__ = 'transactions'
     id = Column(Integer, primary_key=True)

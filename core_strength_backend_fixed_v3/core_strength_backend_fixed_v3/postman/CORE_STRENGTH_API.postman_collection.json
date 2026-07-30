@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "CORE STRENGTH API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://127.0.0.1:8000"},
+    {"key": "accessToken", "value": ""},
+    {"key": "staffToken", "value": ""},
+    {"key": "qrToken", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Mobile Login - Member",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.access_token) pm.collectionVariables.set('accessToken', json.access_token);"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"member\",\n  \"password\": \"123456\"\n}"},
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Auth Me",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{baseUrl}}/api/auth/me"
+      }
+    },
+    {
+      "name": "Member Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{baseUrl}}/api/member/dashboard"
+      }
+    },
+    {
+      "name": "Create Mobile QR",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.token) pm.collectionVariables.set('qrToken', json.token);"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {"mode": "raw", "raw": "{\n  \"entity_type\": \"MEMBER\"\n}"},
+        "url": "{{baseUrl}}/api/qr/token"
+      }
+    },
+    {
+      "name": "Windows Login - Receptionist",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.access_token) pm.collectionVariables.set('staffToken', json.access_token);"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\n  \"username\": \"receptionist\",\n  \"password\": \"123456\",\n  \"device_name\": \"WINDOWS-CAM-01\"\n}"},
+        "url": "{{baseUrl}}/api/windows/auth/login"
+      }
+    },
+    {
+      "name": "Windows Scan QR",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{staffToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {"mode": "raw", "raw": "{\n  \"token\": \"{{qrToken}}\"\n}"},
+        "url": "{{baseUrl}}/api/checkins/scan"
+      }
+    },
+    {
+      "name": "Windows Confirm QR",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{staffToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {"mode": "raw", "raw": "{\n  \"token\": \"{{qrToken}}\",\n  \"location\": \"Quầy check-in chính\",\n  \"device_id\": \"WINDOWS-CAM-01\",\n  \"idempotency_key\": \"postman-demo-001\"\n}"},
+        "url": "{{baseUrl}}/api/checkins/confirm"
+      }
+    }
+  ]
+}
