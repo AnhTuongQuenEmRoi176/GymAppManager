@@ -1,10 +1,13 @@
-﻿import os
+import hashlib
+import os
 import time
 import uuid
 from datetime import date, datetime
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
+from sqlalchemy import text
+
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -16,13 +19,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
 from app.db import get_session
 from app.models import Checkin, Member, MemberPackage, Package, PTSession, QRDemo, Trainer
 from app.state import get_current_user
 from app.ui.confirm_session import ConfirmSessionDialog
 from app.ui.theme import page_title
-
 
 class TabDashboard(QWidget):
     def __init__(self):
@@ -32,16 +33,15 @@ class TabDashboard(QWidget):
         self.pending_entities = None
         self.pending_photo = None
         self.pending_payloads = []
+        self.pending_mobile_qr = {"member": None, "trainer": None}
         self.confirming = False
         self.auto_pause_until = 0
         self.last_auto_confirm = {}
         self.scan_clear_deadline = 0
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
         layout.addWidget(page_title("Trang chủ quét QR", "Kiểm tra hội viên, PT và xác nhận buổi tập"))
-
         toolbar = QFrame()
         toolbar.setObjectName("panel")
         toolbar_layout = QHBoxLayout(toolbar)
@@ -55,7 +55,6 @@ class TabDashboard(QWidget):
         self.status_label.setObjectName("mutedLabel")
         toolbar_layout.addWidget(self.status_label)
         layout.addWidget(toolbar)
-
         content = QHBoxLayout()
         content.setSpacing(14)
 
@@ -67,13 +66,11 @@ class TabDashboard(QWidget):
         title = QLabel("Camera")
         title.setObjectName("sectionLabel")
         camera_layout.addWidget(title)
-
         self.video_frame = QLabel("Camera chưa bật")
         self.video_frame.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_frame.setMinimumSize(620, 380)
         self.video_frame.setStyleSheet("border: 1px solid #26384b; border-radius: 8px; background: #020a13; color: #94a3b8;")
         camera_layout.addWidget(self.video_frame, 1)
-
         camera_buttons = QHBoxLayout()
         self.btn_on = QPushButton("Bật camera")
         self.btn_on.setObjectName("successButton")
@@ -85,25 +82,21 @@ class TabDashboard(QWidget):
         camera_buttons.addStretch()
         camera_layout.addLayout(camera_buttons)
         content.addWidget(camera_panel, 2)
-
         info_panel = QGroupBox("Thông tin check-in")
         info_panel.setMinimumWidth(340)
         info_layout = QVBoxLayout(info_panel)
         info_layout.setSpacing(12)
-
         self.avatar_label = QLabel()
         self.avatar_label.setFixedSize(140, 140)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setStyleSheet("border: 1px solid #26384b; border-radius: 8px; background: #020a13; color: #94a3b8;")
         self.avatar_label.setText("Ảnh")
         info_layout.addWidget(self.avatar_label, alignment=Qt.AlignmentFlag.AlignCenter)
-
         self.info = QLabel("Đưa mã QR vào camera để hiển thị thông tin hội viên hoặc PT.")
         self.info.setWordWrap(True)
         self.info.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.info.setMinimumHeight(150)
         info_layout.addWidget(self.info)
-
         self.btn_confirm = QPushButton("Xác nhận check-in")
         self.btn_confirm.setObjectName("primaryButton")
         self.btn_confirm.setVisible(False)
@@ -116,7 +109,6 @@ class TabDashboard(QWidget):
         content.addWidget(info_panel, 1)
 
         layout.addLayout(content, 1)
-
         self.btn_confirm.clicked.connect(lambda: self.handle_confirm(show_message=True))
         self.btn_reject.clicked.connect(self.clear_scan_state)
         self.btn_on.clicked.connect(self.start_camera)
@@ -126,7 +118,6 @@ class TabDashboard(QWidget):
         if self.worker and self.worker.isRunning():
             return
         from app.utils.camera_worker import CameraWorker
-
         self.worker = CameraWorker(camera_index=0, fps=10)
         self.worker.frame_ready.connect(self.on_frame)
         self.worker.start()
@@ -140,7 +131,6 @@ class TabDashboard(QWidget):
         self.btn_on.setEnabled(True)
         self.btn_off.setEnabled(False)
         self.status_label.setText("Camera đã tắt")
-
     def _set_avatar(self, path):
         if path and os.path.isfile(path):
             pix = QPixmap(path).scaled(
@@ -153,7 +143,6 @@ class TabDashboard(QWidget):
         else:
             self.avatar_label.setPixmap(QPixmap())
             self.avatar_label.setText("Ảnh")
-
     def _member_summary(self, session, member):
         member_package = (
             session.query(MemberPackage)
@@ -172,6 +161,95 @@ class TabDashboard(QWidget):
                 if trainer and trainer.user:
                     trainer_info = trainer.user.full_name
         return package_info, trainer_info
+
+    # MOBILE_QR_COMPATIBILITY_PATCH_V1
+    def _load_mobile_qr(self, session, payload, entities):
+        """Nhận QR động do Flutter/FastAPI sinh qua bảng qr_tokens."""
+        # Token hiện tại là JWT: ba phần ngăn bởi hai dấu chấm.
+        if len(payload) < 80 or payload.count(".") != 2:
+            return False
+
+        token_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        try:
+            record = session.execute(
+                text(
+                    """
+                    SELECT token_id, entity_type, entity_id, expires_at, used_at
+                    FROM qr_tokens
+                    WHERE token_hash = :token_hash
+                    LIMIT 1
+                    """
+                ),
+                {"token_hash": token_hash},
+            ).mappings().first()
+        except Exception as exc:
+            raise RuntimeError(
+                "Database chưa có bảng qr_tokens. Hãy dùng gym_db_full_api.sql."
+            ) from exc
+
+        if record is None:
+            raise ValueError("Mã QR mobile không tồn tại hoặc không thuộc hệ thống này.")
+        if record["used_at"] is not None:
+            raise ValueError("Mã QR mobile đã được sử dụng.")
+        if record["expires_at"] <= datetime.now():
+            raise ValueError("Mã QR mobile đã hết hạn. Hãy mở mã mới trên Flutter.")
+
+        entity_type = str(record["entity_type"]).strip().lower()
+        if entity_type not in {"member", "trainer"}:
+            raise ValueError("Loại QR mobile không hợp lệ.")
+
+        self._load_payload(
+            session,
+            f"{entity_type}:{int(record['entity_id'])}",
+            entities,
+        )
+        if entities.get(entity_type) is None:
+            raise ValueError("Không tìm thấy hồ sơ tương ứng với QR mobile.")
+
+        self.pending_mobile_qr[entity_type] = {
+            "token_hash": token_hash,
+            "token_id": str(record["token_id"]),
+        }
+        self.info.setText(
+            self.info.text() + "\nNguồn QR: Ứng dụng Flutter (mã động)"
+        )
+        return True
+
+    def _consume_mobile_qr_tokens(self, session, scanner_user_id):
+        """Đánh dấu QR động đã dùng ngay trong cùng transaction check-in."""
+        for entity_type, record in self.pending_mobile_qr.items():
+            if not record:
+                continue
+            result = session.execute(
+                text(
+                    """
+                    UPDATE qr_tokens
+                    SET used_at = NOW(), used_by = :used_by
+                    WHERE token_hash = :token_hash
+                      AND entity_type = :entity_type
+                      AND used_at IS NULL
+                      AND expires_at > NOW()
+                    """
+                ),
+                {
+                    "used_by": scanner_user_id,
+                    "token_hash": record["token_hash"],
+                    "entity_type": entity_type,
+                },
+            )
+            if result.rowcount != 1:
+                raise ValueError(
+                    f"QR {entity_type} đã hết hạn hoặc vừa được sử dụng ở thiết bị khác."
+                )
+
+    def _checkin_qr_payload(self, entity_type):
+        mobile = self.pending_mobile_qr.get(entity_type)
+        if mobile:
+            return mobile["token_id"]
+        return next(
+            (p for p in self.pending_payloads if p.startswith(f"{entity_type}:")),
+            "",
+        )
 
     def _load_payload(self, session, payload, entities):
         if payload.startswith("member:"):
@@ -201,10 +279,11 @@ class TabDashboard(QWidget):
                 )
                 self._set_avatar(trainer.user.avatar)
         else:
+            if self._load_mobile_qr(session, payload, entities):
+                return
             demo = session.query(QRDemo).filter(QRDemo.code == payload).first()
             if demo:
                 self._load_payload(session, f"{demo.entity_type}:{demo.entity_id}", entities)
-
     def on_frame(self, rgb_frame, decoded_list):
         h, w, ch = rgb_frame.shape
         bytes_per_line = ch * w
@@ -216,14 +295,12 @@ class TabDashboard(QWidget):
             Qt.TransformationMode.SmoothTransformation,
         )
         self.video_frame.setPixmap(pix)
-
         if not decoded_list:
             return
 
         now = time.monotonic()
         if self.confirming or self.pending_entities or now < self.auto_pause_until:
             return
-
         entities = {"member": None, "trainer": None}
         session = get_session()
         try:
@@ -238,15 +315,16 @@ class TabDashboard(QWidget):
                 self.last_seen[payload] = now
                 try:
                     self._load_payload(session, payload, entities)
-                except Exception:
+                except Exception as exc:
+                    message = str(exc) or "Không đọc được nội dung QR."
+                    self.status_label.setText("QR không hợp lệ")
+                    self.info.setText(message)
                     continue
-
             if entities["member"] or entities["trainer"]:
                 resources_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "checkins")
                 os.makedirs(resources_dir, exist_ok=True)
                 try:
                     import cv2
-
                     bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
                     filename = f"chk_{int(time.time())}_{uuid.uuid4().hex}.jpg"
                     filepath = os.path.join(resources_dir, filename)
@@ -256,14 +334,12 @@ class TabDashboard(QWidget):
 
                 self.pending_entities = entities
                 self.pending_photo = filepath
-
                 detected = []
                 if entities["member"]:
                     detected.append("hội viên")
                 if entities["trainer"]:
                     detected.append("PT")
                 self.status_label.setText("Phát hiện: " + " + ".join(detected))
-
                 if entities["member"] and entities["trainer"]:
                     self.btn_confirm.setText("Xác nhận buổi tập")
                 else:
@@ -271,7 +347,6 @@ class TabDashboard(QWidget):
                 self.btn_confirm.setVisible(True)
                 self.btn_reject.setVisible(True)
                 self.schedule_scan_clear()
-
                 if self.mode_combo.currentText() == "Tự động" and not (entities["member"] and entities["trainer"]):
                     self.handle_confirm(show_message=False, automatic=True)
         finally:
@@ -280,7 +355,6 @@ class TabDashboard(QWidget):
     def handle_confirm(self, show_message=True, automatic=False):
         if not self.pending_entities or self.confirming:
             return
-
         self.confirming = True
         session = get_session()
         try:
@@ -289,7 +363,6 @@ class TabDashboard(QWidget):
             pending_trainer = self.pending_entities.get("trainer")
             member_id = pending_member.id if pending_member else None
             trainer_id = pending_trainer.id if pending_trainer else None
-
             member = session.query(Member).filter(Member.id == member_id).first() if member_id else None
             trainer = session.query(Trainer).filter(Trainer.id == trainer_id).first() if trainer_id else None
 
@@ -298,8 +371,13 @@ class TabDashboard(QWidget):
                 if dialog.exec() != dialog.DialogCode.Accepted:
                     return
 
+            self._consume_mobile_qr_tokens(
+                session,
+                current_user.id if current_user else None,
+            )
+
             if member:
-                payload_member = next((p for p in self.pending_payloads if p.startswith("member:")), "")
+                payload_member = self._checkin_qr_payload("member")
                 session.add(
                     Checkin(
                         member_id=member.id,
@@ -311,9 +389,8 @@ class TabDashboard(QWidget):
                         photo=self.pending_photo,
                     )
                 )
-
             if trainer:
-                payload_trainer = next((p for p in self.pending_payloads if p.startswith("trainer:")), "")
+                payload_trainer = self._checkin_qr_payload("trainer")
                 session.add(
                     Checkin(
                         member_id=None,
@@ -325,7 +402,6 @@ class TabDashboard(QWidget):
                         photo=self.pending_photo,
                     )
                 )
-
             if member and trainer:
                 session.add(
                     PTSession(
@@ -347,7 +423,6 @@ class TabDashboard(QWidget):
                 )
                 if member_package and member_package.sessions_remaining and member_package.sessions_remaining > 0:
                     member_package.sessions_remaining -= 1
-
             session.commit()
             if automatic:
                 self.status_label.setText("Đã tự động lưu check-in")
@@ -357,16 +432,15 @@ class TabDashboard(QWidget):
             self.btn_confirm.setVisible(False)
             self.btn_reject.setVisible(False)
             QTimer.singleShot(5000, self.clear_scan_state)
-
             if not automatic:
                 for payload in self.pending_payloads:
                     self.last_seen.pop(payload, None)
             else:
                 self.auto_pause_until = time.monotonic() + 5
-
             self.pending_entities = None
             self.pending_photo = None
             self.pending_payloads = []
+            self.pending_mobile_qr = {"member": None, "trainer": None}
             if show_message:
                 QMessageBox.information(self, "Thành công", "Lưu check-in thành công")
         except Exception as exc:
@@ -378,7 +452,6 @@ class TabDashboard(QWidget):
         finally:
             session.close()
             self.confirming = False
-
     def schedule_scan_clear(self):
         self.scan_clear_deadline = time.monotonic() + 5
         QTimer.singleShot(5000, self.clear_scan_if_pending)
@@ -386,11 +459,11 @@ class TabDashboard(QWidget):
     def clear_scan_if_pending(self):
         if self.pending_entities and not self.confirming and time.monotonic() >= self.scan_clear_deadline:
             self.clear_scan_state()
-
     def clear_scan_state(self):
         self.pending_entities = None
         self.pending_photo = None
         self.pending_payloads = []
+        self.pending_mobile_qr = {"member": None, "trainer": None}
         self.btn_confirm.setVisible(False)
         self.btn_reject.setVisible(False)
         self.avatar_label.setPixmap(QPixmap())

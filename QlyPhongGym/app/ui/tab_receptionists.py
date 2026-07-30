@@ -24,19 +24,19 @@ class TabReceptionists(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
-        layout.addWidget(page_title("Qu?n l? l? t?n", "Danh s?ch t?i kho?n v?n h?nh qu?y check-in"))
+        layout.addWidget(page_title("Quản lý lễ tân", "Danh sách tài khoản vận hành quầy check-in"))
 
         toolbar = QFrame()
         toolbar.setObjectName("panel")
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(16, 14, 16, 14)
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Tìm theo ID, S?T ho?c t?n")
+        self.search.setPlaceholderText("Tìm theo ID, SDT hoặc tên")
         self.btn_search = QPushButton("Tìm")
         self.btn_search.setObjectName("secondaryButton")
         self.btn_reload = QPushButton("↻")
         self.btn_reload.setObjectName("iconButton")
-        self.btn_reload.setToolTip("Từi l?i danh s?ch")
+        self.btn_reload.setToolTip("Tải lại danh sách")
         self.btn_add = QPushButton("Thêm lễ tân")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search, 1)
@@ -48,7 +48,7 @@ class TabReceptionists(QWidget):
 
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Username", "H? v? t?n", "S?T", "Tr?ng th?i"])
+        self.table.setHorizontalHeaderLabels(["ID", "Username", "Họ và tên", "SĐT", "Trạng thái"])
         configure_table(self.table)
         layout.addWidget(self.table, 1)
 
@@ -134,7 +134,7 @@ class TabReceptionists(QWidget):
         if not user_id:
             QMessageBox.information(self, "Chú ý", "Chọn lễ tân để cho nghỉ")
             return
-        if QMessageBox.question(self, "X?c nh?n", "Cho l? t?n n?y th?i vi?c? Từi kho?n s? b? kh?a nh?ng l?ch s? v?n ???c gi?.") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "Xác nhận", "Cho lễ tân này thôi việc? Tài khoản sẽ bị khóa nhưng lịch sử vẫn được giữ.") != QMessageBox.StandardButton.Yes:
             return
         session = get_session()
         try:
@@ -172,7 +172,7 @@ class TabReceptionists(QWidget):
             if blockers:
                 QMessageBox.warning(self, "Không thể xóa", "Lễ tân còn ràng buộc: " + ", ".join(blockers) + ". Hãy dùng Cho nghỉ để khóa tài khoản.")
                 return
-            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a l? t?n n?y?") != QMessageBox.StandardButton.Yes:
+            if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa lễ tân này?") != QMessageBox.StandardButton.Yes:
                 return
             session.delete(user)
             session.commit()

@@ -169,3 +169,4 @@ Bảng `member_packages` phải có bản ghi:
 - Ngày hiện tại nằm trong `start_date` và `end_date`.
 - `sessions_remaining > 0` hoặc không giới hạn.
 
+flutter run -d edge --dart-define=USE_MOCK_DATA=false --dart-define=API_BASE_URL=http://127.0.0.1:8000/api --dart-define=WS_BASE_URL=ws://127.0.0.1:8000/ws
