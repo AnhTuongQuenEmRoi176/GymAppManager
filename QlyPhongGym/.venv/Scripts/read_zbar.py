@@ -1,4 +1,4 @@
-#!C:\Users\Sol\Documents\GitHub\GymAppManager\QlyPhongGym\.venv\Scripts\python.exe
+#!C:\dev\Github\GymAppManager\QlyPhongGym\.venv\Scripts\python.exe
 from __future__ import print_function
 
 import argparse

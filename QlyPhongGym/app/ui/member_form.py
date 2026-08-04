@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QDateEdit, QDialog, QFileDialog, QFormLayout, QFrame
 
 from app.auth import hash_password
 from app.db import get_session
-from app.models import Member, User
+from app.models import Member, Role, User
 from app.state import get_current_user
 from app.ui.theme import page_title
 from app.ui.validators import normalize_phone, validate_email, validate_phone, validate_required
@@ -148,10 +148,39 @@ class MemberForm(QDialog):
                 if session.query(User).filter(User.username == phone).first():
                     QMessageBox.warning(self, "Lỗi", "SĐT này đã tồn tại, không thể dùng làm tài khoản mới")
                     return
-                user = User(username=phone, password_hash=hash_password(DEFAULT_PASSWORD), full_name=name, phone=phone, email=email)
+                member_role = (
+                    session.query(Role)
+                    .filter(Role.name == "MEMBER")
+                    .first()
+                )
+
+                if not member_role:
+                    QMessageBox.critical(
+                        self,
+                        "Thiếu dữ liệu phân quyền",
+                        "Không tìm thấy role MEMBER trong bảng roles.\n"
+                        "Hãy kiểm tra lại database gym_db.",
+                    )
+                    return
+
+                user = User(
+                    username=phone,
+                    password_hash=hash_password(DEFAULT_PASSWORD),
+                    full_name=name,
+                    phone=phone,
+                    email=email or None,
+                    role_id=member_role.id,
+                    is_active=True,
+                )
+
                 session.add(user)
                 session.flush()
-                member = Member(user_id=user.id)
+
+                member = Member(
+                    user_id=user.id,
+                    status="active",
+                )
+
                 session.add(member)
 
             user.username = phone

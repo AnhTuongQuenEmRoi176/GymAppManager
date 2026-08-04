@@ -1,0 +1,67 @@
+{
+  "patch": "gym_consistency_khoa_fix_v1",
+  "created_at": "2026-08-04T20:34:24",
+  "project_root": "C:\\dev\\Github\\GymAppManager",
+  "files": [
+    {
+      "component": "windows",
+      "target": "QlyPhongGym\\app\\models.py",
+      "backup": "QlyPhongGym\\app\\models.py"
+    },
+    {
+      "component": "windows",
+      "target": "QlyPhongGym\\app\\ui\\package_form.py",
+      "backup": "QlyPhongGym\\app\\ui\\package_form.py"
+    },
+    {
+      "component": "windows",
+      "target": "QlyPhongGym\\app\\ui\\package_registration.py",
+      "backup": "QlyPhongGym\\app\\ui\\package_registration.py"
+    },
+    {
+      "component": "windows",
+      "target": "QlyPhongGym\\app\\ui\\tab_packages.py",
+      "backup": "QlyPhongGym\\app\\ui\\tab_packages.py"
+    },
+    {
+      "component": "windows",
+      "target": "QlyPhongGym\\app\\ui\\tab_dashboard.py",
+      "backup": "QlyPhongGym\\app\\ui\\tab_dashboard.py"
+    },
+    {
+      "component": "backend",
+      "target": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\services\\gym_queries.py",
+      "backup": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\services\\gym_queries.py"
+    },
+    {
+      "component": "backend",
+      "target": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\services\\qr_checkin_service.py",
+      "backup": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\services\\qr_checkin_service.py"
+    },
+    {
+      "component": "backend",
+      "target": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\api\\routes\\memberships.py",
+      "backup": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\api\\routes\\memberships.py"
+    },
+    {
+      "component": "backend",
+      "target": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\api\\routes\\trainers.py",
+      "backup": "core_strength_backend_fixed_v3\\core_strength_backend_fixed_v3\\app\\api\\routes\\trainers.py"
+    },
+    {
+      "component": "flutter",
+      "target": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\domain\\entities\\gym_entities.dart",
+      "backup": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\domain\\entities\\gym_entities.dart"
+    },
+    {
+      "component": "flutter",
+      "target": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\data\\repositories\\remote_gym_repository.dart",
+      "backup": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\data\\repositories\\remote_gym_repository.dart"
+    },
+    {
+      "component": "flutter",
+      "target": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\presentation\\pages\\member_home_page.dart",
+      "backup": "core_strength_mobile_clean\\core_strength_mobile_clean\\lib\\features\\gym\\presentation\\pages\\member_home_page.dart"
+    }
+  ]
+}

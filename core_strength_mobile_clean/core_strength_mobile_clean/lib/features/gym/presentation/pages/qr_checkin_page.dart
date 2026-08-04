@@ -42,13 +42,17 @@ class _QrCheckinPageState extends ConsumerState<QrCheckinPage> {
     super.initState();
     Future.microtask(() async {
       await _loadToken();
-      _eventSubscription = ref.read(realtimeServiceProvider).events.listen(_onEvent);
+      _eventSubscription = ref
+          .read(realtimeServiceProvider)
+          .events
+          .listen(_onEvent);
     });
   }
 
   void _onEvent(RealtimeEvent event) {
     if (!mounted) return;
-    if (event.type == 'checkin.confirmed' || event.type == 'checkin_confirmed') {
+    if (event.type == 'checkin.confirmed' ||
+        event.type == 'checkin_confirmed') {
       setState(() => _confirmed = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Check-in đã được lễ tân xác nhận.')),
@@ -123,7 +127,9 @@ class _QrCheckinPageState extends ConsumerState<QrCheckinPage> {
             label: _remainingSeconds > 0
                 ? 'Sẵn sàng · $_remainingSeconds giây'
                 : 'Đang làm mới',
-            type: _remainingSeconds > 0 ? StatusType.success : StatusType.neutral,
+            type: _remainingSeconds > 0
+                ? StatusType.success
+                : StatusType.neutral,
             icon: Icons.qr_code_2_rounded,
           );
 
@@ -142,7 +148,10 @@ class _QrCheckinPageState extends ConsumerState<QrCheckinPage> {
             ),
           ),
           const SizedBox(height: 18),
-          Text('Quét mã Check-in', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Quét mã Check-in',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 5),
           Text(
             'Đưa mã QR này cho lễ tân để xác nhận vào phòng tập.',
@@ -158,7 +167,10 @@ class _QrCheckinPageState extends ConsumerState<QrCheckinPage> {
                     const Expanded(
                       child: Text(
                         'Mã QR cá nhân',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     status,
@@ -223,10 +235,16 @@ class _QrCheckinPageState extends ConsumerState<QrCheckinPage> {
                         widget.user.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 3),
-                      Text(widget.user.role.label, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        widget.user.role.label,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),

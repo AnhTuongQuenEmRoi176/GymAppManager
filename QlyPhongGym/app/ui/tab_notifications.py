@@ -234,7 +234,7 @@ class NotificationComposeDialog(QDialog):
         layout.addWidget(title_label)
 
         description = QLabel(
-            "Thông báo được lưu vào database và gửi realtime tới Flutter khi backend đang chạy."
+            "Thông báo đã được gửi"
         )
         description.setObjectName("mutedLabel")
         description.setWordWrap(True)
@@ -340,7 +340,7 @@ class NotificationComposeDialog(QDialog):
             )
         finally:
             session.close()
-        self.recipient_hint.setText(f"Dự kiến gửi tới {len(targets)} tài khoản mobile đang hoạt động.")
+        self.recipient_hint.setText(f"Dự kiến gửi tới {len(targets)} tài khoản đang hoạt động.")
 
     def send_notification(self):
         if not is_admin():
@@ -399,7 +399,7 @@ class NotificationComposeDialog(QDialog):
             self,
             "Đã gửi",
             f"Đã tạo thành công {len(sent_targets)} thông báo.\n"
-            "Flutter sẽ nhận realtime nếu backend FastAPI đang chạy.",
+            "Đã gửi thông báo tài khoản",
         )
         self.accept()
 

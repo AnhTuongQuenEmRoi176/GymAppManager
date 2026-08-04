@@ -1134,3 +1134,24 @@ flutter run -d chrome --dart-define=USE_MOCK_DATA=false --dart-define=API_BASE_U
 - Windows App: đóng cửa sổ.
 - XAMPP: Stop MySQL sau cùng.
 
+hạy lại toàn bộ hệ thống
+
+Backend:
+
+cd C:\dev\Github\GymAppManager\core_strength_backend
+.\run.bat
+
+Windows App:
+
+cd C:\dev\Github\GymAppManager\QlyPhongGym
+.\.venv\Scripts\Activate.ps1
+python -m app.main
+
+Flutter Chrome:
+
+cd C:\dev\Github\GymAppManager\core_strength_mobile
+
+flutter clean
+flutter pub get
+
+flutter run -d chrome --dart-define=USE_MOCK_DATA=false --dart-define=API_BASE_URL=http://127.0.0.1:8000/api --dart-define=WS_BASE_URL=ws://127.0.0.1:8000/ws
