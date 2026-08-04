@@ -40,7 +40,7 @@ class TabTrainers(QWidget):
         self.search_input.setPlaceholderText("Tìm PT theo tên hoặc số điện thoại")
         self.btn_reload = QPushButton("↻")
         self.btn_reload.setObjectName("iconButton")
-        self.btn_reload.setToolTip("T?i l?i danh s?ch")
+        self.btn_reload.setToolTip("Tải lại danh sách")
         self.btn_add = QPushButton("Thêm PT mới")
         self.btn_add.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.search_input, 1)
@@ -194,7 +194,7 @@ class TabTrainers(QWidget):
         if not is_admin():
             QMessageBox.warning(self, "Không có quyền", "Chỉ admin được cho PT thôi việc")
             return
-        if QMessageBox.question(self, "X?c nh?n", "Cho PT n?y th?i vi?c? PT s? b? kh?a t?i kho?n nh?ng l?ch s? v?n ???c gi?.") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "Xác nhận", "Cho PT này thôi việc? PT sẽ bị khóa tài khoản nhưng lịch sử vẫn được giữ.") != QMessageBox.StandardButton.Yes:
             return
         session = get_session()
         try:
@@ -233,7 +233,7 @@ class TabTrainers(QWidget):
             if blockers:
                 QMessageBox.warning(self, "Không thể xóa", "PT còn ràng buộc: " + ", ".join(blockers) + ". Hãy dùng Cho nghỉ để khóa tài khoản.")
                 return
-            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a PT n?y?") != QMessageBox.StandardButton.Yes:
+            if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa PT này?") != QMessageBox.StandardButton.Yes:
                 return
             user = trainer.user
             session.delete(trainer)

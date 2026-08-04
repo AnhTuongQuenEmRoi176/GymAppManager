@@ -1,7 +1,7 @@
 import os
 import sys
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QStackedWidget,
@@ -17,12 +18,17 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.state import get_current_user, is_admin
+from app.state import (
+    get_current_user,
+    is_admin,
+    set_current_user,
+)
 from app.ui.login import LoginDialog
 from app.ui.theme import apply_app_theme
 
 
 class MainWindow(QMainWindow):
+    logout_requested = pyqtSignal()
     def __init__(self):
         super().__init__()
 
@@ -103,6 +109,14 @@ class MainWindow(QMainWindow):
         current_user.setObjectName("brandSubTitle")
         current_user.setWordWrap(True)
         sidebar_layout.addWidget(current_user)
+        self.btn_logout = QPushButton("Đăng xuất")
+        self.btn_logout.setObjectName("dangerButton")
+        self.btn_logout.setToolTip(
+            "Kết thúc phiên làm việc và quay lại màn hình đăng nhập"
+        )
+        self.btn_logout.clicked.connect(self.request_logout)
+
+        sidebar_layout.addWidget(self.btn_logout)
 
         content = QFrame()
         content.setObjectName("contentFrame")
@@ -155,7 +169,20 @@ class MainWindow(QMainWindow):
             nav_button.setProperty("active", active)
             nav_button.style().unpolish(nav_button)
             nav_button.style().polish(nav_button)
+    def request_logout(self):
+        result = QMessageBox.question(
+            self,
+            "Xác nhận đăng xuất",
+            "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?",
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            QMessageBox.StandardButton.No,
+        )
 
+        if result == QMessageBox.StandardButton.Yes:
+            self.logout_requested.emit()
     def toggle_theme(self):
         self.theme_mode = "light" if self.theme_mode == "dark" else "dark"
         apply_app_theme(QApplication.instance(), self.theme_mode)
@@ -168,21 +195,72 @@ class MainWindow(QMainWindow):
             if button.property("admin_only"):
                 button.setEnabled(False)
                 button.setText(f"{button.text()}  (Admin)")
+class AppController:
 
+    def __init__(self):
+        self.window = None
+
+    def start(self):
+        login = LoginDialog()
+
+        if (
+            login.exec()
+            != QDialog.DialogCode.Accepted
+        ):
+            return False
+
+        self.open_main_window()
+        return True
+
+    def open_main_window(self):
+        self.window = MainWindow()
+
+        self.window.logout_requested.connect(
+            self.handle_logout
+        )
+
+        self.window.show()
+
+    def handle_logout(self):
+        old_window = self.window
+
+        if old_window is not None:
+            old_window.hide()
+
+        set_current_user(None)
+
+        login = LoginDialog()
+        result = login.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            self.open_main_window()
+
+            if old_window is not None:
+                old_window.close()
+                old_window.deleteLater()
+
+            return
+
+        if old_window is not None:
+            old_window.close()
+            old_window.deleteLater()
+
+        QApplication.quit()
 
 def main():
     app = QApplication(sys.argv)
+
+    app.setApplicationName("Apex Gym")
     app.setFont(QFont("Segoe UI", 10))
+
     apply_app_theme(app, "dark")
 
-    login = LoginDialog()
+    controller = AppController()
 
-    if login.exec() == QDialog.DialogCode.Accepted:
-        win = MainWindow()
-        win.show()
-        sys.exit(app.exec())
+    if not controller.start():
+        sys.exit(0)
 
-    sys.exit(0)
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

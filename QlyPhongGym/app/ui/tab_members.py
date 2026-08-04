@@ -126,11 +126,11 @@ class TabMembers(QWidget):
 
     def delete_member(self):
         if not is_admin():
-            QMessageBox.warning(self, "Kh?ng c? quy?n", "Ch? admin ???c x?a h?i vi?n")
+            QMessageBox.warning(self, "Không có quyền", "Chỉ admin mới được xóa hội viên")
             return
         member_id = self.selected_member_id()
         if not member_id:
-            QMessageBox.information(self, "Ch? ?", "Ch?n h?i vi?n ?? x?a")
+            QMessageBox.information(self, "Chú ý", "Chọn hội viên để xóa")
             return
         session = get_session()
         try:
@@ -147,9 +147,9 @@ class TabMembers(QWidget):
             if session.query(QRDemo).filter(QRDemo.entity_type == "member", QRDemo.entity_id == member.id).first():
                 blockers.append("?? c? m? QR demo")
             if blockers:
-                QMessageBox.warning(self, "Kh?ng th? x?a", "H?i vi?n c?n r?ng bu?c: " + ", ".join(blockers))
+                QMessageBox.warning(self, "Không thể xóa", "Hội viên còn ràng buộc: " + ", ".join(blockers))
                 return
-            if QMessageBox.question(self, "X?c nh?n", "B?n c? ch?c mu?n x?a h?i vi?n n?y?") != QMessageBox.StandardButton.Yes:
+            if QMessageBox.question(self, "Xác nhận", "Bạn có chắc muốn xóa hội viên này?") != QMessageBox.StandardButton.Yes:
                 return
             user = member.user
             session.delete(member)
@@ -158,7 +158,7 @@ class TabMembers(QWidget):
             session.commit()
         except Exception as exc:
             session.rollback()
-            QMessageBox.critical(self, "L?i", f"X?a th?t b?i: {exc}")
+            QMessageBox.critical(self, "Lỗi", f"Xóa thất bại: {exc}")
         finally:
             session.close()
         self.refresh()
