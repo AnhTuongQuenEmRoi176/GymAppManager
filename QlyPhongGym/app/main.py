@@ -75,6 +75,7 @@ class MainWindow(QMainWindow):
             ("Thử nghiệm QR", "app.ui.tab_qrdemo", "TabQRDemo", False),
             ("Lịch sử check-in", "app.ui.tab_history", "TabHistory", False),
             ("Lịch tập & lịch dạy", "app.ui.tab_schedules", "TabSchedules", False),
+            ("Thông báo", "app.ui.tab_notifications", "TabNotifications", True),
             ("Lễ tân", "app.ui.tab_receptionists", "TabReceptionists", True),
             ("Huấn luyện viên", "app.ui.tab_trainers", "TabTrainers", False),
             ("Gói tập", "app.ui.tab_packages", "TabPackages", False),

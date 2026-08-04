@@ -3,6 +3,7 @@ import os
 import time
 import uuid
 from datetime import date, datetime
+from app.ui.tab_notifications import NotificationComposeDialog
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
@@ -21,7 +22,7 @@ from PyQt6.QtWidgets import (
 )
 from app.db import get_session
 from app.models import Checkin, Member, MemberPackage, Package, PTSession, QRDemo, Trainer
-from app.state import get_current_user
+from app.state import get_current_user, is_admin
 from app.ui.confirm_session import ConfirmSessionDialog
 from app.ui.theme import page_title
 
@@ -51,6 +52,15 @@ class TabDashboard(QWidget):
         self.mode_combo.addItems(["Thủ công", "Tự động"])
         toolbar_layout.addWidget(self.mode_combo)
         toolbar_layout.addStretch()
+
+        if is_admin():
+            self.btn_create_notification = QPushButton("Tạo thông báo")
+            self.btn_create_notification.setObjectName("primaryButton")
+            self.btn_create_notification.clicked.connect(
+                self.open_notification_dialog
+            )
+            toolbar_layout.addWidget(self.btn_create_notification)
+
         self.status_label = QLabel("Sẵn sàng quét")
         self.status_label.setObjectName("mutedLabel")
         toolbar_layout.addWidget(self.status_label)
@@ -114,6 +124,9 @@ class TabDashboard(QWidget):
         self.btn_on.clicked.connect(self.start_camera)
         self.btn_off.clicked.connect(self.stop_camera)
 
+    def open_notification_dialog(self):
+        dialog = NotificationComposeDialog(self)
+        dialog.exec()
     def start_camera(self):
         if self.worker and self.worker.isRunning():
             return
